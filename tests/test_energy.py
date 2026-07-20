@@ -32,3 +32,13 @@ def test_energy_efficiency():
 def test_energy_efficiency_zero_energy():
     ee = energy_efficiency(data_bits=9000.0, total_energy_j=0.0)
     assert ee == 0.0
+
+def test_tx_energy_clamp():
+    # Very high power * very high data → should clamp to MAX_ENERGY_J=1.0
+    e = tx_energy(power_w=100.0, data_bits=1e9, rate_bps=1.0)
+    assert e == pytest.approx(1.0)
+
+def test_comp_energy_unknown_node_type_raises():
+    import pytest as _pytest
+    with _pytest.raises(ValueError, match="Unknown node_type"):
+        comp_energy(node_type="gpu_cluster", allocated_vms=1.0, process_time_s=0.001)

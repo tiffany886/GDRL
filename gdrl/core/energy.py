@@ -23,8 +23,8 @@ def tx_energy(power_w: float, data_bits: float, rate_bps: float) -> float:
     """传输能耗（J）= 发射功率 × 传输时间。"""
     if rate_bps <= 0:
         return MAX_ENERGY_J
-    e = power_w * (data_bits / rate_bps)
-    return min(float(e), MAX_ENERGY_J)
+    e = max(float(power_w), 0.0) * (max(float(data_bits), 0.0) / rate_bps)
+    return min(e, MAX_ENERGY_J)
 
 
 def comp_energy(node_type: str, allocated_vms: float, process_time_s: float) -> float:
@@ -40,8 +40,10 @@ def comp_energy(node_type: str, allocated_vms: float, process_time_s: float) -> 
         p_per_vm = P_LEO
     elif node_type == "haps":
         p_per_vm = P_HAPS
-    else:
+    elif node_type == "local":
         p_per_vm = P_LOCAL
+    else:
+        raise ValueError(f"Unknown node_type: {node_type!r}. Expected 'leo', 'haps', or 'local'.")
     e = p_per_vm * max(float(allocated_vms), 0.0) * max(float(process_time_s), 0.0)
     return min(e, MAX_ENERGY_J)
 
