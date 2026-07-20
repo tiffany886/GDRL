@@ -72,6 +72,7 @@ class MetricsCallback(BaseCallback):
         super().__init__()
         self.episode_rewards = []
         self.step_latencies = []
+        self.step_energies = []
         self._current_episode_latents = []
         self._recent_episode_latents = deque(maxlen=max(1, int(replay_episode_capacity)))
         self.online_update_losses = []
@@ -103,6 +104,8 @@ class MetricsCallback(BaseCallback):
             latency = info.get("latency")
             if latency is not None:
                 self.step_latencies.append(to_float(latency))
+            energy = info.get("energy", 0.0)
+            self.step_energies.append(float(energy) if energy is not None else 0.0)
             if "episode" in info:
                 self.episode_rewards.append(float(info["episode"]["r"]))
         if self.online_update and action_array is not None:
@@ -360,6 +363,7 @@ def evaluate_random(args, user_requests, user_lists, encoder_dis, encoder_con, R
     env = make_raw_env(args, user_requests, user_lists, encoder_dis, encoder_con, ResetFunction)
     episode_rewards = []
     step_latencies = []
+    step_energies = []
     obs, _ = env.reset()
 
     current_reward = 0.0
@@ -369,13 +373,14 @@ def evaluate_random(args, user_requests, user_lists, encoder_dis, encoder_con, R
         current_reward += float(reward)
         if info.get("latency") is not None:
             step_latencies.append(to_float(info["latency"]))
+        step_energies.append(float(info.get("energy", 0.0)))
         if terminated or truncated:
             episode_rewards.append(current_reward)
             current_reward = 0.0
             obs, _ = env.reset()
 
     env.close()
-    return episode_rewards, step_latencies, 0.0
+    return episode_rewards, step_latencies, step_energies, 0.0
 
 
 def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_con,
@@ -432,10 +437,10 @@ def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_c
         else:
             print(f"Saved AMN weights to {paths['dir']}")
     env.close()
-    return callback.episode_rewards, callback.step_latencies, elapsed
+    return callback.episode_rewards, callback.step_latencies, callback.step_energies, elapsed
 
 
-def summarize(method, episode_rewards, step_latencies, elapsed):
+def summarize(method, episode_rewards, step_latencies, step_energies, elapsed):
     rewards = np.asarray(episode_rewards, dtype=float)
     latencies = np.asarray(step_latencies, dtype=float)
     return {
@@ -449,6 +454,9 @@ def summarize(method, episode_rewards, step_latencies, elapsed):
         "latency_mean": float(latencies.mean()) if latencies.size else float("nan"),
         "latency_p95": float(np.percentile(latencies, 95)) if latencies.size else float("nan"),
         "latency_max": float(latencies.max()) if latencies.size else float("nan"),
+        "energy_mean": float(np.mean(step_energies)) if len(step_energies) > 0 else 0.0,
+        "energy_total": float(np.sum(step_energies)) if len(step_energies) > 0 else 0.0,
+        "energy_p95": float(np.percentile(step_energies, 95)) if len(step_energies) > 0 else 0.0,
         "elapsed_sec": float(elapsed),
     }
 
@@ -489,16 +497,16 @@ def main():
         set_seed(args.seed + index)
 
         if method == "random":
-            episode_rewards, step_latencies, elapsed = evaluate_random(
+            episode_rewards, step_latencies, step_energies, elapsed = evaluate_random(
                 args, user_requests, user_lists, encoder_dis, encoder_con, ResetFunction
             )
         else:
-            episode_rewards, step_latencies, elapsed = train_method(
+            episode_rewards, step_latencies, step_energies, elapsed = train_method(
                 args, method, user_requests, user_lists, encoder_dis, encoder_con,
                 autoencoder_dis, autoencoder_con, ResetFunction, output_dir
             )
 
-        row = summarize(method, episode_rewards, step_latencies, elapsed)
+        row = summarize(method, episode_rewards, step_latencies, step_energies, elapsed)
         rows.append(row)
         for episode, reward in enumerate(episode_rewards, start=1):
             detail_rows.append({"method": method, "episode": episode, "reward": float(reward)})
