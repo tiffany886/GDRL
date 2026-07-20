@@ -45,7 +45,6 @@ latency*.npy
 
 # ── Conda / pip 虚拟环境 ─────────────────────────────────────
 gdrl_gpu/
-gdrl/
 .conda/
 *.egg-info/
 dist/
