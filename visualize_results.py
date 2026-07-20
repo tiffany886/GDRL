@@ -200,6 +200,31 @@ def plot_latency_bar(summary_df, output_dir, dpi):
     return path
 
 
+def plot_energy_bar(summary_df, output_dir, dpi):
+    if summary_df is None or summary_df.empty:
+        return None
+    if "energy_mean" not in summary_df.columns:
+        return None
+    labels = [METHOD_LABELS.get(m, m) for m in summary_df["method"]]
+    colors = [COLORS.get(m, "#666666") for m in summary_df["method"]]
+    x = np.arange(len(summary_df))
+    width = 0.30
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(x - width / 2, summary_df["energy_mean"] * 1e3, width,
+            label="Mean (mJ)", color=colors, edgecolor="#222222")
+    plt.bar(x + width / 2, summary_df["energy_p95"] * 1e3, width,
+            label="P95 (mJ)", color=[c + "99" for c in colors], edgecolor="#222222")
+    plt.xticks(x, labels)
+    plt.title("Energy Consumption Comparison")
+    plt.xlabel("Method")
+    plt.ylabel("Energy per step (mJ)")
+    plt.legend()
+    path = output_dir / "baseline_energy_bar.png"
+    savefig(path, dpi)
+    return path
+
+
 def plot_tradeoff(summary_df, output_dir, dpi):
     if summary_df is None or summary_df.empty:
         return None
@@ -306,6 +331,7 @@ def main():
         plot_reward_bar(summary_df, output_dir, args.dpi),
         plot_latency_bar(summary_df, output_dir, args.dpi),
         plot_tradeoff(summary_df, output_dir, args.dpi),
+        plot_energy_bar(summary_df, output_dir, args.dpi),
         plot_dashboard(single_df, summary_df, episodes_df, latency_path, output_dir, args.dpi),
     ]:
         if path is not None:
