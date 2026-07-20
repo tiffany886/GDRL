@@ -1,0 +1,44 @@
+# ============================================================
+# 论文原始配置
+# 来源：IEEE JSAC 2025, Cai et al., 表格 I / arg_parser.py 默认值
+# 用法：python compare_baselines.py --config configs/paper_config.yaml
+# ============================================================
+
+# ── 网络拓扑 ─────────────────────────────────────────────────
+network:
+  U: 3       # 地面用户数量
+  L: 16      # LEO 卫星数量（低轨道，300-500 km）
+  N: 16      # HAPS 平台数量（高空，20-30 km）
+  T: 100     # 每个 episode 的时隙数量（mini-slot）
+
+# ── 训练超参数 ────────────────────────────────────────────────
+training:
+  episodes: 600          # 训练 episode 总数
+  seed: 42               # 随机种子（保证可复现性）
+  device: auto           # "auto"=自动选GPU, "cpu"=强制CPU, "cuda"=强制GPU
+  amn_epochs: 100        # AMN autoencoder 预训练轮数
+
+# ── TRPO 超参数（论文使用 TRPO 作为策略优化器）────────────────
+trpo:
+  gamma: 0.995           # 折扣因子
+  tau: 0.97              # GAE λ 参数
+  learning_rate: 3.0e-4
+  target_kl: 0.005       # 信赖域约束（KL 散度上限）
+  cg_damping: 0.2        # 共轭梯度阻尼系数
+  n_steps: 100           # 每次更新收集的步数（=T）
+
+# ── GCN 特征提取网络 (GFEN) ───────────────────────────────────
+gfen:
+  features_dim: 32       # GCN 输出特征维度
+  gnn_hidden: 16         # GCN 中间层维度
+  pi_arch: [32, 32]      # Actor 网络结构
+  vf_arch: [16, 4]       # Critic 网络结构
+
+# ── 信道模型 ─────────────────────────────────────────────────
+channel:
+  mode: paper_approx     # paper_approx（Python近似）/ matlab_p681（精确）/ simple
+  seed: 73               # 信道随机种子（环境变量 GDRL_CHANNEL_SEED）
+
+# ── 输出路径 ─────────────────────────────────────────────────
+output:
+  experiment_root: experiments   # 实验结果根目录
