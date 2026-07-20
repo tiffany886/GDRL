@@ -1,4 +1,5 @@
 import argparse
+from experiment_config import add_scenario_arguments, apply_scenario, validate_scenario
 
 
 def get_args():
@@ -35,5 +36,14 @@ def get_args():
                         help='The number of continues action(default: 6)')
     parser.add_argument('--epsilon', type=int, default=0, metavar='N',
                         help='The exploration rate of the algorithm(default: 0.8)')
+    add_scenario_arguments(parser)
+    parser.add_argument('--output_dir', type=str, default=None,
+                        help='单算法训练输出目录；不填时自动写入 experiments/场景名/single_xxx。')
+    parser.add_argument('--force_retrain_amn', action='store_true',
+                        help='忽略已有 AMN/autoencoder 权重，针对当前场景重新训练。')
+    parser.add_argument('--amn_epochs', type=int, default=100,
+                        help='AMN/autoencoder 训练轮数，默认 100。')
     args = parser.parse_args()
+    args = apply_scenario(args)
+    validate_scenario(args)
     return args
