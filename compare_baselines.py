@@ -46,6 +46,10 @@ def parse_args():
         action="store_true",
         help="在 GDRL 训练期间用真实 latent action 继续微调 AMN；默认关闭，避免干扰基线结果。",
     )
+    parser.add_argument(
+        "--energy_weight", type=float, default=0.1,
+        help="奖励函数中能耗惩罚系数 γ₃（默认 0.1）。设为 0 可禁用能耗项。"
+    )
     add_scenario_arguments(parser)
     args = parser.parse_args()
     args = apply_scenario(args)
@@ -62,6 +66,7 @@ def configure_project_argv(args):
         "--N", str(args.N),
         "--T", str(args.T),
         "--total_step", str(args.episodes * args.T),
+        "--energy_weight", str(getattr(args, "energy_weight", 0.1)),
     ]
 
 
