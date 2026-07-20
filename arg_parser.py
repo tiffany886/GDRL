@@ -43,6 +43,10 @@ def get_args():
                         help='忽略已有 AMN/autoencoder 权重，针对当前场景重新训练。')
     parser.add_argument('--amn_epochs', type=int, default=100,
                         help='AMN/autoencoder 训练轮数，默认 100。')
+    parser.add_argument(
+        "--energy_weight", type=float, default=0.1,
+        help="奖励函数中能耗惩罚系数 γ₃（默认 0.1）。设为 0 可禁用能耗项。"
+    )
     args = parser.parse_args()
     args = apply_scenario(args)
     validate_scenario(args)
