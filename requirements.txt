@@ -1,0 +1,39 @@
+# ============================================================
+# GDRL GPU 环境依赖清单
+# 对应 conda 环境：gdrl_gpu (Python 3.8)
+# GPU：NVIDIA GTX 1650，CUDA 驱动 12.7，PyTorch 使用 CUDA 12.1
+#
+# 安装方式（完整环境）：
+#   conda create -n gdrl_gpu python=3.8 -y
+#   conda activate gdrl_gpu
+#   conda install pytorch==2.1.0 torchvision==0.16.0 pytorch-cuda=12.1 -c pytorch -c nvidia -y
+#   pip install -r requirements.txt
+# ============================================================
+
+# ── 核心深度学习框架 ─────────────────────────────────────────
+torch==2.1.0
+torchvision==0.16.0
+torch_geometric==2.4.0
+
+# ── 强化学习框架 ─────────────────────────────────────────────
+stable-baselines3==2.2.1
+sb3-contrib==2.2.1          # 提供 TRPO 算法
+gymnasium==0.29.1
+
+# ── 科学计算 ─────────────────────────────────────────────────
+numpy==1.23.5
+scipy==1.10.1
+scikit-learn==1.3.2
+
+# ── 训练可视化 ───────────────────────────────────────────────
+tensorboard==2.14.0          # 注意：2.21.0 不兼容 Python 3.8
+tensorboard-data-server==0.7.2
+
+# ── 数据处理与可视化 ─────────────────────────────────────────
+matplotlib==3.7.5
+pandas==2.0.3
+
+# ── 工具类 ───────────────────────────────────────────────────
+PyYAML>=6.0                  # 读取 configs/ 下的 YAML 配置文件
+tqdm==4.69.0
+cloudpickle==3.1.2

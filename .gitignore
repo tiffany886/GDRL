@@ -1,0 +1,80 @@
+# ============================================================
+# GDRL 项目 .gitignore
+# 适用于 Python 深度强化学习 + PyTorch + Conda 环境
+# ============================================================
+
+# ── Python 编译缓存 ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# ── 模型权重（体积大，不入库；用 Git LFS 或 release 单独管理）──
+*.pth
+*.pt
+*.ckpt
+model_save/
+
+# ── 实验输出（可复现的中间结果，不入库）──────────────────────
+experiments/*/compare_*/
+experiments/*/single_*/
+experiments/*/amn/
+# 保留 experiments 目录本身和场景概览图
+!experiments/
+!experiments/scenario_overview_figures/
+
+# ── 旧版临时结果目录 ─────────────────────────────────────────
+compare_results/
+compare_results_*/
+visualization_results/
+visualization_results_*/
+autoencoder_status/
+
+# ── 训练日志 ─────────────────────────────────────────────────
+trpo_tensorboard/
+*.monitor.csv
+monitor_logs*
+*.tfevents.*
+
+# ── 临时数据文件（每次运行重新生成）─────────────────────────
+edge_index.pt
+user_requests.npz
+user_requests.npz.npy
+action*.npy
+latency*.npy
+
+# ── Conda / pip 虚拟环境 ─────────────────────────────────────
+gdrl_gpu/
+gdrl/
+.conda/
+*.egg-info/
+dist/
+build/
+
+# ── Jupyter Notebook ──────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── IDE 配置 ─────────────────────────────────────────────────
+.idea/
+.vscode/
+*.suo
+*.user
+
+# ── 系统文件 ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 敏感配置 ─────────────────────────────────────────────────
+.env
+*.key
+secrets.yaml
+
+# ── MATLAB 临时文件 ──────────────────────────────────────────
+*.asv
+*.m~
+matlab_crash_dump.*
+
+# ── 论文 PDF（版权问题，不入库）─────────────────────────────
+*.pdf
