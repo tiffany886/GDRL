@@ -21,14 +21,14 @@ Please visit https://pengchengau.github.io/ for other related publications and c
 ### Requirements
 Code is written in python and requires the installation of `torch`, `argparse`, `stable_baselines3`,  `numpy`, `scipy`, `gymnasium`, `sb3_contrib`, and `itertools` packages. Additionally, Anaconda is required and the version of Python utilized is 3.7. Anaconda can be installed via [Anaconda Webpage](https://anaconda.org/anaconda) by clicking Download Anaconda and other packages can be installed via:
 ```
-pip install numpy
-pip install torch
-pip install argparse
-pip install stable_baselines3
-pip install scipy
-pip install gymnasium
-pip install itertools
-pip install sb3_contrib
+conda install numpy
+conda install torch
+conda install argparse
+conda install stable_baselines3
+conda install scipy
+conda install gymnasium
+conda install itertools
+conda install sb3_contrib
 ```
 The model is trained using GPU by setting device="cuda", please make sure that CUDA is correctly installed and the computer used to train this model has a CUDA-capable system. If not, please delete the device="cuda" command in the main.py function and train this model using CPU. It is not receommanded to train the model using CPU as it is time consuming.
 
