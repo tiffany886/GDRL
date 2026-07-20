@@ -109,8 +109,9 @@ if __name__ == "__main__":
         model.learn(total_timesteps=args.total_step, tb_log_name="first_run", callback=custom_callback)
         model.save(str(model_file))
 
-        actions, rewards, latency = custom_callback.get_training_data()
+        actions, rewards, latency, energy = custom_callback.get_training_data()
         np.save(output_dir / f'latency{i}.npy', latency)
+        np.save(output_dir / f'energy{i}.npy', energy)
         np.save(output_dir / f'action{i}.npy', actions)
 
         actions = torch.from_numpy(actions).squeeze()
