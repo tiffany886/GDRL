@@ -225,6 +225,43 @@ def plot_energy_bar(summary_df, output_dir, dpi):
     return path
 
 
+def plot_latency_cdf(compare_dir, summary_df, output_dir, dpi):
+    """每个方法的延迟 CDF 对比图，从 latency_{method}.npy 读取原始数据。"""
+    if summary_df is None or summary_df.empty:
+        return None
+    methods = summary_df["method"].tolist()
+    data = {}
+    for m in methods:
+        f = compare_dir / f"latency_{m}.npy"
+        if f.exists():
+            arr = np.load(f, allow_pickle=True).astype(float).reshape(-1)
+            arr = arr[np.isfinite(arr)]
+            if len(arr):
+                data[m] = arr
+    if not data:
+        return None
+
+    plt.figure(figsize=(10, 5.5))
+    for m, arr in data.items():
+        sorted_lat = np.sort(arr) * 1000  # → ms
+        cdf = np.arange(1, len(sorted_lat) + 1) / len(sorted_lat)
+        color = COLORS.get(m, "#666666")
+        label = METHOD_LABELS.get(m, m)
+        plt.plot(sorted_lat, cdf, linewidth=2.0, color=color, label=label)
+        p95 = float(np.percentile(arr, 95)) * 1000
+        plt.axvline(p95, color=color, linewidth=0.8, linestyle="--", alpha=0.6)
+
+    plt.title("Latency CDF Comparison")
+    plt.xlabel("Latency (ms)")
+    plt.ylabel("CDF")
+    plt.xlim(left=0)
+    plt.ylim(0, 1.02)
+    plt.legend()
+    path = output_dir / "baseline_latency_cdf.png"
+    savefig(path, dpi)
+    return path
+
+
 def plot_tradeoff(summary_df, output_dir, dpi):
     if summary_df is None or summary_df.empty:
         return None
@@ -330,6 +367,7 @@ def main():
         plot_baseline_reward_curves(episodes_df, output_dir, args.dpi),
         plot_reward_bar(summary_df, output_dir, args.dpi),
         plot_latency_bar(summary_df, output_dir, args.dpi),
+        plot_latency_cdf(compare_dir, summary_df, output_dir, args.dpi),
         plot_tradeoff(summary_df, output_dir, args.dpi),
         plot_energy_bar(summary_df, output_dir, args.dpi),
         plot_dashboard(single_df, summary_df, episodes_df, latency_path, output_dir, args.dpi),

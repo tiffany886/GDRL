@@ -511,6 +511,8 @@ def main():
                 autoencoder_dis, autoencoder_con, ResetFunction, output_dir
             )
 
+        np.save(output_dir / f"latency_{method}.npy", np.asarray(step_latencies, dtype=float))
+        np.save(output_dir / f"energy_{method}.npy", np.asarray(step_energies, dtype=float))
         row = summarize(method, episode_rewards, step_latencies, step_energies, elapsed)
         rows.append(row)
         for episode, reward in enumerate(episode_rewards, start=1):
