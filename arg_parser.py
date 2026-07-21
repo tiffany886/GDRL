@@ -47,6 +47,13 @@ def get_args():
         "--energy_weight", type=float, default=0.1,
         help="奖励函数中能耗惩罚系数 γ₃（默认 0.1）。设为 0 可禁用能耗项。"
     )
+    parser.add_argument(
+        "--use_gat", action="store_true", default=True,
+        help="使用 GATv2Conv 替代 GCNConv（默认开启）。传 --no-use_gat 可还原 GCN 做消融对比。"
+    )
+    parser.add_argument(
+        "--no-use_gat", dest="use_gat", action="store_false"
+    )
     args = parser.parse_args()
     args = apply_scenario(args)
     validate_scenario(args)
