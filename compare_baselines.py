@@ -50,6 +50,11 @@ def parse_args():
         "--energy_weight", type=float, default=0.1,
         help="奖励函数中能耗惩罚系数 γ₃（默认 0.1）。设为 0 可禁用能耗项。"
     )
+    parser.add_argument(
+        "--use_gat", action="store_true", default=True,
+        help="使用 GATv2Conv（默认）。传 --no-use_gat 可还原 GCN 做消融对比。"
+    )
+    parser.add_argument("--no-use_gat", dest="use_gat", action="store_false")
     add_scenario_arguments(parser)
     args = parser.parse_args()
     args = apply_scenario(args)
@@ -67,7 +72,7 @@ def configure_project_argv(args):
         "--T", str(args.T),
         "--total_step", str(args.episodes * args.T),
         "--energy_weight", str(getattr(args, "energy_weight", 0.1)),
-    ]
+    ] + (["--use_gat"] if getattr(args, "use_gat", True) else ["--no-use_gat"])
 
 
 class MetricsCallback(BaseCallback):
