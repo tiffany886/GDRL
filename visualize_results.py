@@ -251,10 +251,13 @@ def plot_latency_cdf(compare_dir, summary_df, output_dir, dpi):
         p95 = float(np.percentile(arr, 95)) * 1000
         plt.axvline(p95, color=color, linewidth=0.8, linestyle="--", alpha=0.6)
 
+    # 截断 x 轴到各方法 P99 的最大值，去除极端 outliers 避免曲线被压缩
+    all_vals = np.concatenate([arr for arr in data.values()])
+    x_max = float(np.percentile(all_vals, 99)) * 1000
     plt.title("Latency CDF Comparison")
     plt.xlabel("Latency (ms)")
     plt.ylabel("CDF")
-    plt.xlim(left=0)
+    plt.xlim(0, x_max)
     plt.ylim(0, 1.02)
     plt.legend()
     path = output_dir / "baseline_latency_cdf.png"
