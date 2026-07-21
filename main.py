@@ -129,7 +129,7 @@ if __name__ == "__main__":
                          verbose=1, device="auto", tensorboard_log=str(tensorboard_dir))
         model.learn(total_timesteps=args.total_step, tb_log_name="first_run", callback=custom_callback)
         model.save(str(model_file))
-        actions, rewards, latency = custom_callback.get_training_data()
+        actions, rewards, latency, energy = custom_callback.get_training_data()
         np.save(output_dir / f'latency{i}.npy', latency)
         np.save(output_dir / f'action{i}.npy', actions)
         # The shape of action is [total_timesteps, 1, 32], reward: [total_timesteps, 1]
