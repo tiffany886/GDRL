@@ -70,6 +70,20 @@ if __name__ == "__main__":
     torch.save(edge_index, output_dir / 'edge_index.pt')
     # Feature.py 当前从项目根目录读取 edge_index.pt，因此保留一份运行时副本。
     torch.save(edge_index, 'edge_index.pt')
+    # 保存静态边特征（归一化节点间距离，传播延迟代理）
+    from gdrl.core.graph import compute_edge_attr as _cef
+    from gdrl.core.nodes import all_LEO_status as _all_leo, all_HAPS_status as _all_haps
+    _, _U_place = all_user_status(args.U)
+    _, _LEO_place, _ = _all_leo(args.L)
+    _, _HAPS_place, _ = _all_haps(args.N)
+    _ei_np = np.stack(np.where(Adj_Matrix > 0), axis=0)  # [2, E]
+    _edge_attr = _cef(
+        _ei_np,
+        _U_place, _LEO_place, _HAPS_place,
+        args.U, args.L, args.N,
+    )
+    torch.save(_edge_attr, output_dir / 'edge_attr.pt')
+    torch.save(_edge_attr, 'edge_attr.pt')
     train_model_num = 1
     amn_loaded = False
     if not args.force_retrain_amn:
