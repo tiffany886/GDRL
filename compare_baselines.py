@@ -256,6 +256,19 @@ def build_components(args, output_dir):
     # Feature.py 当前从项目根目录读取 edge_index.pt，因此保留一份运行时副本。
     torch.save(edge_index, "edge_index.pt")
 
+    # 保存静态边特征（归一化节点间距离），供 GATv2Conv 使用。
+    # 必须在 build_components 中生成，以确保边数与当前场景匹配。
+    from gdrl.core.graph import compute_edge_attr as _cef
+    from UserStatus import all_user_status as _aus
+    from gdrl.core.nodes import all_LEO_status as _als, all_HAPS_status as _ahs
+    _, _U_place = _aus(args.U)
+    _, _LEO_place, _ = _als(args.L)
+    _, _HAPS_place, _ = _ahs(args.N)
+    _ei_np = np.stack(np.where(adj_matrix > 0), axis=0)
+    _edge_attr = _cef(_ei_np, _U_place, _LEO_place, _HAPS_place, args.U, args.L, args.N)
+    torch.save(_edge_attr, output_dir / "edge_attr.pt")
+    torch.save(_edge_attr, "edge_attr.pt")
+
     autoencoder_dis = AutoencoderDis(16, action_space_len, args.U, user_lists, M1EncoderDis, M1DecoderDis)
     autoencoder_con = AutoencoderCon(16, 2 * args.U, M1EncoderCon, M1DecoderCon)
     return user_requests, user_lists, autoencoder_dis, autoencoder_con, ResetFunction
