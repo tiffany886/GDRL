@@ -518,6 +518,7 @@ def main():
 
     for index, method in enumerate(args.methods):
         set_seed(args.seed + index)
+        torch.cuda.empty_cache()
 
         if method == "random":
             episode_rewards, step_latencies, step_energies, elapsed = evaluate_random(
