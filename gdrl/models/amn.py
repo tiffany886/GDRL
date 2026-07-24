@@ -164,3 +164,111 @@ class AutoencoderCon(nn.Module):
     def forward(self, x):
         encoded = self.encoder(x)
         return self.decoder(encoded)
+
+
+class M1EncoderPartial(nn.Module):
+    """
+    部分卸载编码器：在 M1EncoderDis 基础上增加卸载比例头。
+
+    输出结构：[offload_ratio(U), dis_action(action_space_len)]
+      - offload_ratio : 每个用户的卸载比例 (sigmoid 0-1)
+      - dis_action    : 原版离散卸载目标
+
+    STE 梯度策略与 M1EncoderDis 一致。
+    """
+
+    def __init__(self, input_dim, output_dim, U):
+        super(M1EncoderPartial, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim  # action_space_len
+        self.U = U
+        self.lstm = nn.LSTM(self.input_dim, 128, batch_first=True)
+        self.fnn_dis = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(128, 64), nn.ReLU(),
+            nn.Linear(64, self.output_dim),
+        )
+        # 卸载比例头
+        self.fnn_ratio = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(128, 64), nn.ReLU(),
+            nn.Linear(64, self.U),
+            nn.Sigmoid(),  # 输出 0-1，表示卸载比例
+        )
+
+    def forward(self, latent_action, user_lists, differentiable=False):
+        x = latent_action
+        batch_size = x.size(0)
+        x, _ = self.lstm(x.unsqueeze(1))
+        x = x.view(batch_size, -1)[:, -128:]
+
+        # 离散动作分支（复用 M1EncoderDis 逻辑）
+        logits = self.fnn_dis(x)
+        x_out = []
+        index = 0
+        for u in range(len(user_lists)):
+            x1 = F.softmax(logits[:, index:index + len(user_lists[u])], dim=1)
+            index += len(user_lists[u])
+            x_out.append(x1)
+
+        all_action = []
+        for u, probs in enumerate(x_out):
+            action_values = torch.tensor(user_lists[u], device=x.device, dtype=x.dtype)
+            max_idx = torch.argmax(probs, dim=1)
+            hard_action = action_values[max_idx]
+            if differentiable:
+                soft_action = torch.sum(probs * action_values.unsqueeze(0), dim=1)
+                final_action = hard_action.detach() + soft_action - soft_action.detach()
+            else:
+                final_action = hard_action.to(torch.long)
+            all_action.append(final_action)
+        dis_action = torch.stack(all_action, dim=1)
+
+        # 卸载比例分支
+        offload_ratio = self.fnn_ratio(x)  # [B, U]
+
+        return dis_action, offload_ratio
+
+
+class M1DecoderPartial(nn.Module):
+    """部分卸载解码器：FNN + LSTM → 重构 [offload_ratio, dis_action]。"""
+
+    def __init__(self, input_dim, output_dim, U):
+        super(M1DecoderPartial, self).__init__()
+        self.input_dim = input_dim  # U + action_space_len
+        self.output_dim = output_dim
+        self.U = U
+        self.fnn_net = nn.Sequential(
+            nn.Linear(self.input_dim, 32), nn.ReLU(),
+            nn.Linear(32, 16), nn.ReLU()
+        )
+        self.lstm_out = nn.LSTM(16, self.output_dim, batch_first=True)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        x = x.to(torch.float32)
+        x = self.fnn_net(x).unsqueeze(1)
+        x, _ = self.lstm_out(x)
+        return x.view(batch_size, -1)
+
+
+class AutoencoderPartial(nn.Module):
+    """
+    部分卸载自编码器。
+
+    输出：[offload_ratio(U), dis_action(U)]
+    训练时使用 STE 可微，推理时 encoder 返回硬离散动作 + 卸载比例。
+    """
+
+    def __init__(self, input_dim, latent_dim, U, user_lists, Encoder, Decoder):
+        super(AutoencoderPartial, self).__init__()
+        self.encoder = Encoder(input_dim, latent_dim, U)
+        # decoder 输入: offload_ratio(U) + dis_action(U) = 2*U
+        self.decoder = Decoder(2 * U, input_dim, U)
+        self.user_lists = user_lists
+
+    def forward(self, x):
+        dis_action, offload_ratio = self.encoder(x, self.user_lists, differentiable=True)
+        # 拼接 [offload_ratio, dis_action] 用于解码器重构
+        combined = torch.cat([offload_ratio, dis_action.to(torch.float32)], dim=1)
+        return self.decoder(combined)
