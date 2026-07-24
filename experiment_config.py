@@ -58,20 +58,26 @@ def apply_scenario(args):
 
 
 def validate_scenario(args):
-    """检查当前场景是否满足原始动作编码和邻接矩阵生成逻辑的基本约束。"""
-    if args.L > 16 or args.N > 16:
-        raise ValueError(
-            "当前离散动作只用 4 bit 表示 LEO/HAPS 编号，所以 L 和 N 暂时都不能超过 16。"
-        )
-    if args.L < args.U + 4 or args.N < args.U + 4:
-        raise ValueError(
-            "当前拓扑生成器要求 L >= U + 4 且 N >= U + 4，"
-            "这样每个用户才能连接直接节点和若干间接节点。"
-        )
+    """检查当前场景是否满足动作编码和邻接矩阵生成逻辑的基本约束。"""
+    hybrid = getattr(args, 'G', 0) > 0 or getattr(args, 'V', 0) > 0 or getattr(args, 'M', 0) > 0
+    if not hybrid:
+        if args.L > 16 or args.N > 16:
+            raise ValueError(
+                "当前离散动作只用 4 bit 表示 LEO/HAPS 编号，所以 L 和 N 暂时都不能超过 16。"
+            )
+        if args.L < args.U + 4 or args.N < args.U + 4:
+            raise ValueError(
+                "当前拓扑生成器要求 L >= U + 4 且 N >= U + 4，"
+                "这样每个用户才能连接直接节点和若干间接节点。"
+            )
 
 
 def scenario_tag(args):
     scenario = getattr(args, "scenario", "custom")
+    hybrid = getattr(args, 'G', 0) > 0 or getattr(args, 'V', 0) > 0 or getattr(args, 'M', 0) > 0
+    if hybrid:
+        G = getattr(args, 'G', 0); V = getattr(args, 'V', 0); M = getattr(args, 'M', 0)
+        return f"{scenario}_U{args.U}_G{G}_V{V}_L{args.L}_M{M}_T{args.T}"
     return f"{scenario}_U{args.U}_L{args.L}_N{args.N}_T{args.T}"
 
 
@@ -102,6 +108,7 @@ def write_manifest(path, args, extra=None):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     scenario = getattr(args, "scenario", "custom")
+    hybrid = getattr(args, 'G', 0) > 0 or getattr(args, 'V', 0) > 0 or getattr(args, 'M', 0) > 0
     data = {
         "scenario": scenario,
         "scenario_tag": scenario_tag(args),
@@ -111,6 +118,10 @@ def write_manifest(path, args, extra=None):
         "T": args.T,
         "description": SCENARIOS.get(scenario, {}).get("description", "自定义场景"),
     }
+    if hybrid:
+        data["G"] = getattr(args, 'G', 0)
+        data["V"] = getattr(args, 'V', 0)
+        data["M"] = getattr(args, 'M', 0)
     if extra:
         data.update(extra)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
