@@ -29,6 +29,11 @@ SCENARIOS = {
 }
 
 
+def _is_hybrid(args):
+    """检测是否为 hybrid 四层异构场景（包含 gNB/UAV/MEC 节点）。"""
+    return getattr(args, 'G', 0) > 0 or getattr(args, 'V', 0) > 0 or getattr(args, 'M', 0) > 0
+
+
 def add_scenario_arguments(parser):
     parser.add_argument(
         "--scenario",
@@ -59,7 +64,7 @@ def apply_scenario(args):
 
 def validate_scenario(args):
     """检查当前场景是否满足动作编码和邻接矩阵生成逻辑的基本约束。"""
-    hybrid = getattr(args, 'G', 0) > 0 or getattr(args, 'V', 0) > 0 or getattr(args, 'M', 0) > 0
+    hybrid = _is_hybrid(args)
     if not hybrid:
         if args.L > 16 or args.N > 16:
             raise ValueError(
@@ -74,7 +79,7 @@ def validate_scenario(args):
 
 def scenario_tag(args):
     scenario = getattr(args, "scenario", "custom")
-    hybrid = getattr(args, 'G', 0) > 0 or getattr(args, 'V', 0) > 0 or getattr(args, 'M', 0) > 0
+    hybrid = _is_hybrid(args)
     if hybrid:
         G = getattr(args, 'G', 0); V = getattr(args, 'V', 0); M = getattr(args, 'M', 0)
         return f"{scenario}_U{args.U}_G{G}_V{V}_L{args.L}_M{M}_T{args.T}"
@@ -108,7 +113,7 @@ def write_manifest(path, args, extra=None):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     scenario = getattr(args, "scenario", "custom")
-    hybrid = getattr(args, 'G', 0) > 0 or getattr(args, 'V', 0) > 0 or getattr(args, 'M', 0) > 0
+    hybrid = _is_hybrid(args)
     data = {
         "scenario": scenario,
         "scenario_tag": scenario_tag(args),
