@@ -30,7 +30,7 @@ from experiment_config import (
 def parse_args():
     parser = argparse.ArgumentParser(description="Compare GDRL with lightweight baselines.")
     parser.add_argument("--methods", nargs="+", default=["random", "trpo_mlp", "gdrl"],
-                        choices=["random", "trpo_mlp", "ppo_mlp", "gdrl"])
+                        choices=["random", "trpo_mlp", "ppo_mlp", "gdrl", "gdrl_sac"])
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--T", type=int, default=100)
     parser.add_argument("--U", type=int, default=3)
@@ -50,6 +50,12 @@ def parse_args():
         "--energy_weight", type=float, default=0.1,
         help="奖励函数中能耗惩罚系数 γ₃（默认 0.1）。设为 0 可禁用能耗项。"
     )
+    parser.add_argument("--sac_buffer_size", type=int, default=50000,
+                        help="SAC replay buffer size")
+    parser.add_argument("--sac_batch_size", type=int, default=256,
+                        help="SAC mini-batch size")
+    parser.add_argument("--sac_tau", type=float, default=0.005,
+                        help="SAC soft update coefficient")
     parser.add_argument(
         "--use_gat", action="store_true", default=True,
         help="使用 GATv2Conv（默认）。传 --no-use_gat 可还原 GCN 做消融对比。"
@@ -444,6 +450,21 @@ def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_c
         )
         model = PPO("MlpPolicy", env, policy_kwargs=policy_kwargs, n_steps=args.T,
                     batch_size=args.T, verbose=0, device=args.device, seed=args.seed)
+    elif method == "gdrl_sac":
+        from stable_baselines3 import SAC
+        policy_kwargs = dict(
+            features_extractor_class=CustomFeaturesExtractor,
+            features_extractor_kwargs=dict(features_dim=32),
+            activation_fn=torch.nn.ReLU,
+            net_arch=dict(pi=[64, 64], qf=[64, 64]),
+        )
+        model = SAC("MlpPolicy", env, policy_kwargs=policy_kwargs,
+                    learning_rate=3e-4,
+                    buffer_size=getattr(args, 'sac_buffer_size', 50000),
+                    batch_size=getattr(args, 'sac_batch_size', 256),
+                    tau=getattr(args, 'sac_tau', 0.005),
+                    gamma=0.995,
+                    verbose=0, device=args.device, seed=args.seed)
     else:
         raise ValueError(f"Unknown trainable method: {method}")
 
