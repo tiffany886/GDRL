@@ -26,6 +26,12 @@ def get_args():
                         help='The total number of HAP (default: 16)')
     parser.add_argument('--L', type=int, default=16, metavar='N',
                         help='The total number of LEO (default: 16)')
+    parser.add_argument('--G', type=int, default=0, metavar='N',
+                        help='The total number of gNB nodes for hybrid mode (default: 0)')
+    parser.add_argument('--V', type=int, default=0, metavar='N',
+                        help='The total number of UAV nodes for hybrid mode (default: 0)')
+    parser.add_argument('--M', type=int, default=0, metavar='N',
+                        help='The total number of MEC nodes for hybrid mode (default: 0)')
     parser.add_argument('--total_step', type=int, default=100, metavar='N',
                         help='The number of mini-slot for each epoch (default: 20)')
     parser.add_argument('--T', type=int, default=100, metavar='N',

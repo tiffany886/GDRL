@@ -31,10 +31,25 @@ class CustomFeaturesExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim: int = 32):
         super(CustomFeaturesExtractor, self).__init__(observation_space, features_dim)
 
-        # 图中节点总数 = 用户数 + LEO 数 + HAPS 数
-        self.output_dim = args.U + args.L + args.N
-        self._L = args.L
-        self._N = args.N
+        from experiment_config import _is_hybrid
+        _args = get_args()  # re-parse per-instantiation so test overrides of sys.argv are respected
+        self._is_hybrid = _is_hybrid(_args)
+
+        # 图中节点总数（hybrid: U+G+V+L+M；legacy: U+L+N）
+        if self._is_hybrid:
+            self.output_dim = _args.U + getattr(_args, 'G', 0) + getattr(_args, 'V', 0) + _args.L + getattr(_args, 'M', 0)
+            self._G = getattr(_args, 'G', 0)
+            self._V = getattr(_args, 'V', 0)
+            self._L = _args.L
+            self._M = getattr(_args, 'M', 0)
+            self._N = 0  # hybrid doesn't use HAPS/N
+        else:
+            self.output_dim = _args.U + _args.L + _args.N
+            self._G = 0
+            self._V = 0
+            self._L = _args.L
+            self._M = 0
+            self._N = _args.N
         # edge_index.pt 由 main.py 根据邻接矩阵动态生成，保存在项目根目录
         self.edge_index = torch.load('edge_index.pt').long()
 
@@ -42,7 +57,7 @@ class CustomFeaturesExtractor(BaseFeaturesExtractor):
         var_input_dim = observation_space.shape[0] - self.output_dim
 
         # ── GNN 部分：GATv2Conv（默认）或 GCNConv（--no-use_gat 消融）
-        _use_gat = getattr(args, 'use_gat', True)
+        _use_gat = getattr(_args, 'use_gat', True)
         _EDGE_DIM = 2          # 静态距离(1) + 动态负载比例(1)
         _GAT_HEADS = 4
         self.node_norm = nn.LayerNorm(2)
@@ -113,27 +128,62 @@ class CustomFeaturesExtractor(BaseFeaturesExtractor):
 
         E = self.edge_attr.shape[0]
         device = scaled_obs.device
-        U = self.output_dim - self._L - self._N
-        L = self._L
-        N = self._N
 
         # 静态边特征 [E, 1] -> [B, E, 1]
         static_ea = self.edge_attr.to(device).unsqueeze(0).expand(batch_size, -1, -1)
 
         # 动态特征：目标节点当前负载（log-scale 下的代理值）
         var_state = scaled_obs[:, :-2 * self.output_dim]   # [B, var_dim]
-        cl_curr = var_state[:, 6 * U: 6 * U + L]          # [B, L]
-        cn_curr = var_state[:, 6 * U + L: 6 * U + L + N]  # [B, N]
 
-        con_state_raw = scaled_obs[:, -2 * self.output_dim:].reshape(
-            batch_size, self.output_dim, 2)
-        cl_ori = con_state_raw[:, U: U + L, 0]            # [B, L]
-        cn_ori = con_state_raw[:, U + L: U + L + N, 0]    # [B, N]
+        if self._is_hybrid:
+            # Hybrid obs: 8U + G + V + L + M + 2, graph features at end
+            # Node order: UE[0:U], gNB[U:U+G], UAV[U+G:U+G+V], LEO[U+G+V:U+G+V+L], MEC[U+G+V+L:U+G+V+L+M]
+            # var_state layout: [6*U user_features | G gnb_curr | V uav_curr | L leo_curr | M mec_curr | ...]
+            U = self.output_dim - self._G - self._V - self._L - self._M
+            G = self._G
+            V = self._V
+            L = self._L
+            M = self._M
 
-        leo_load = cl_curr / (cl_ori.abs() + 1e-6)        # [B, L]
-        haps_load = cn_curr / (cn_ori.abs() + 1e-6)       # [B, N]
-        ue_load = torch.zeros(batch_size, U, device=device)
-        node_load = torch.cat([ue_load, leo_load, haps_load], dim=1)  # [B, U+L+N]
+            # Extract current capacities from var_state (after 6*U user features)
+            cg_curr = var_state[:, 6 * U: 6 * U + G] if G > 0 else torch.zeros(batch_size, 0, device=device)
+            cv_curr = var_state[:, 6 * U + G: 6 * U + G + V] if V > 0 else torch.zeros(batch_size, 0, device=device)
+            cl_curr = var_state[:, 6 * U + G + V: 6 * U + G + V + L]
+            cm_curr = var_state[:, 6 * U + G + V + L: 6 * U + G + V + L + M] if M > 0 else torch.zeros(batch_size, 0, device=device)
+
+            # Extract original capacities from con_state (graph features, 2D per node)
+            # con_state_raw shape: [B, output_dim, 2], node order: UE, gNB, UAV, LEO, MEC
+            con_state_raw = scaled_obs[:, -2 * self.output_dim:].reshape(batch_size, self.output_dim, 2)
+            cg_ori = con_state_raw[:, U: U + G, 0] if G > 0 else torch.ones(batch_size, G, device=device)
+            cv_ori = con_state_raw[:, U + G: U + G + V, 0] if V > 0 else torch.ones(batch_size, V, device=device)
+            cl_ori = con_state_raw[:, U + G + V: U + G + V + L, 0]
+            cm_ori = con_state_raw[:, U + G + V + L: U + G + V + L + M, 0] if M > 0 else torch.ones(batch_size, M, device=device)
+
+            # Compute load ratios (current / original)
+            gnb_load = cg_curr / (cg_ori.abs() + 1e-6) if G > 0 else torch.zeros(batch_size, 0, device=device)
+            uav_load = cv_curr / (cv_ori.abs() + 1e-6) if V > 0 else torch.zeros(batch_size, 0, device=device)
+            leo_load = cl_curr / (cl_ori.abs() + 1e-6)
+            mec_load = cm_curr / (cm_ori.abs() + 1e-6) if M > 0 else torch.zeros(batch_size, 0, device=device)
+            ue_load = torch.zeros(batch_size, U, device=device)
+
+            node_load = torch.cat([ue_load, gnb_load, uav_load, leo_load, mec_load], dim=1)  # [B, U+G+V+L+M]
+        else:
+            # Original 3-node logic (unchanged)
+            U = self.output_dim - self._L - self._N
+            L = self._L
+            N = self._N
+            cl_curr = var_state[:, 6 * U: 6 * U + L]          # [B, L]
+            cn_curr = var_state[:, 6 * U + L: 6 * U + L + N]  # [B, N]
+
+            con_state_raw = scaled_obs[:, -2 * self.output_dim:].reshape(
+                batch_size, self.output_dim, 2)
+            cl_ori = con_state_raw[:, U: U + L, 0]            # [B, L]
+            cn_ori = con_state_raw[:, U + L: U + L + N, 0]    # [B, N]
+
+            leo_load = cl_curr / (cl_ori.abs() + 1e-6)        # [B, L]
+            haps_load = cn_curr / (cn_ori.abs() + 1e-6)       # [B, N]
+            ue_load = torch.zeros(batch_size, U, device=device)
+            node_load = torch.cat([ue_load, leo_load, haps_load], dim=1)  # [B, U+L+N]
 
         dst = edge_index[1]                                 # [E]
         dynamic_ea = node_load[:, dst].unsqueeze(2)        # [B, E, 1]
