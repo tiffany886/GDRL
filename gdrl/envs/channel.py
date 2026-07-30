@@ -125,29 +125,52 @@ def _channel_response(gain, distance, fk, total_gain, array_response):
     return path_loss_amplitude * gain * array_response
 
 
-def ChannelModel(uf, du):
+def ChannelModel(uf, du, node_type=None):
     """
-    主信道模型接口：根据用户服务类型（uf）返回对应信道向量。
+    主信道模型接口：根据节点类型和用户业务类型返回对应信道向量。
 
     参数：
-        uf : 用户业务类型（1/2/5 → LEO Sub-6G；其他 → HAPS mmWave）
-        du : 用户到节点的距离（米）
+        uf        : 用户业务类型（1/2/5 → LEO Sub-6G；其他 → HAPS mmWave）
+        du        : 用户到节点的距离（米）
+        node_type : 节点类型字符串（'gnb', 'uav', 'leo', 'haps', 'mec', None）
+                    None 保持原版 uf 路由逻辑（向后兼容）
     """
-    # ── LEO 链路参数（Sub-6G，2.9 GHz）
+    vertheta_lo = np.pi / 6   # 低仰角（LEO/HAPS/gNB）30°
+    vertheta_hi = np.pi / 4   # 高仰角（UAV）45°
+    theta_x = np.pi / 4
+
+    # ── gNB（5G NR, 3.5 GHz）地面基站
+    if node_type == 'gnb':
+        fk = 3.5e9; lam = c / fk; G = 10
+        Mx, My = 8, 8; dx = dy = lam / 2
+        theta_y = np.arcsin(np.sin(theta_x) * np.sin(vertheta_lo) / np.cos(vertheta_lo))
+        gain = _paper_approx_gain(fk, vertheta_lo)
+        arr = _upa_response(theta_x, theta_y, Mx, My, dx, dy, fk)
+        return _channel_response(gain, du, fk, G, arr)
+
+    # ── UAV（2.4 GHz Rician，空地链路，高仰角）
+    if node_type == 'uav':
+        fk = 2.4e9; lam = c / fk; G = 8
+        Mx, My = 4, 4; dx = dy = lam / 2
+        theta_y = np.arcsin(np.sin(theta_x) * np.sin(vertheta_hi) / np.cos(vertheta_hi))
+        gain = _paper_approx_gain(fk, vertheta_hi)
+        arr = _upa_response(theta_x, theta_y, Mx, My, dx, dy, fk)
+        return _channel_response(gain, du, fk, G, arr)
+
+    # ── MEC 有线/光纤：调用方应直接跳过信道计算，此分支作为后备
+    if node_type == 'mec':
+        return np.ones((1, 1), dtype=complex) * 1e6  # 高增益近似有线连接
+
+    # ── LEO / HAPS / None：原版 uf 路由逻辑（向后兼容）
     fkl = 2.9e9; lamdal = c / fkl; Gul = 10
     Ml_x, Ml_y = 12, 12; dl_x = dl_y = lamdal
 
-    # ── HAPS 链路参数（毫米波，15 GHz）
     fkn = 15e9; lamdan = c / fkn; Gun = 10
     Mn_x, Mn_y = 6, 6; dn_x = dn_y = lamdan
 
-    # ── 空间角度参数（仰角 30°，水平角 45°）
-    vertheta = np.pi / 6
-    theta_x  = np.pi / 4
-    theta_y  = np.arcsin(np.sin(theta_x) * np.sin(vertheta) / np.cos(vertheta))
-
-    gukl = _ground_to_space(fkl, vertheta)
-    gukn = _ground_to_space(fkn, vertheta)
+    theta_y = np.arcsin(np.sin(theta_x) * np.sin(vertheta_lo) / np.cos(vertheta_lo))
+    gukl = _ground_to_space(fkl, vertheta_lo)
+    gukn = _ground_to_space(fkn, vertheta_lo)
 
     if uf in (1, 2, 5):
         n_u_l = _upa_response(theta_x, theta_y, Ml_x, Ml_y, dl_x, dl_y, fkl)
