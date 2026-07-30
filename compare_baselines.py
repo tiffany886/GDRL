@@ -61,6 +61,12 @@ def parse_args():
         help="使用 GATv2Conv（默认）。传 --no-use_gat 可还原 GCN 做消融对比。"
     )
     parser.add_argument("--no-use_gat", dest="use_gat", action="store_false")
+    parser.add_argument("--G", type=int, default=0,
+                        help="hybrid 模式 gNB 节点数（默认 0，非 hybrid 模式忽略）")
+    parser.add_argument("--V", type=int, default=0,
+                        help="hybrid 模式 UAV 节点数（默认 0，非 hybrid 模式忽略）")
+    parser.add_argument("--M", type=int, default=0,
+                        help="hybrid 模式 MEC 节点数（默认 0，非 hybrid 模式忽略）")
     add_scenario_arguments(parser)
     args = parser.parse_args()
     args = apply_scenario(args)
@@ -79,6 +85,16 @@ def configure_project_argv(args):
         "--total_step", str(args.episodes * args.T),
         "--energy_weight", str(getattr(args, "energy_weight", 0.1)),
     ] + (["--use_gat"] if getattr(args, "use_gat", True) else ["--no-use_gat"])
+    # Pass hybrid node counts so Feature.py / arg_parser see them
+    G = getattr(args, "G", 0)
+    V = getattr(args, "V", 0)
+    M = getattr(args, "M", 0)
+    if G > 0:
+        sys.argv += ["--G", str(G)]
+    if V > 0:
+        sys.argv += ["--V", str(V)]
+    if M > 0:
+        sys.argv += ["--M", str(M)]
 
 
 class MetricsCallback(BaseCallback):
@@ -89,6 +105,7 @@ class MetricsCallback(BaseCallback):
         self.episode_rewards = []
         self.step_latencies = []
         self.step_energies = []
+        self.step_decisions = []
         self._current_episode_latents = []
         self._recent_episode_latents = deque(maxlen=max(1, int(replay_episode_capacity)))
         self.online_update_losses = []
@@ -122,6 +139,9 @@ class MetricsCallback(BaseCallback):
                 self.step_latencies.append(to_float(latency))
             energy = info.get("energy", 0.0)
             self.step_energies.append(float(energy) if energy is not None else 0.0)
+            decisions = info.get("decisions")
+            if decisions is not None:
+                self.step_decisions.append(decisions)
             if "episode" in info:
                 self.episode_rewards.append(float(info["episode"]["r"]))
         if self.online_update and action_array is not None:
@@ -244,10 +264,12 @@ def make_state_store(args, ResetFunction):
 
 
 def build_components(args, output_dir):
-    from Generate_adj_matrix import GenerateAdjacency
     from Generate_inital_environment import ResetFunction
     from UserRequest import all_user_feature
-    from amp import AutoencoderCon, AutoencoderDis, M1DecoderCon, M1DecoderDis, M1EncoderCon, M1EncoderDis
+    from amp import (AutoencoderCon, AutoencoderDis, AutoencoderPartial,
+                     M1DecoderCon, M1DecoderDis, M1DecoderPartial,
+                     M1EncoderCon, M1EncoderDis, M1EncoderPartial)
+    from experiment_config import _is_hybrid
 
     Uf, Pu, Su, Ou, Vu, Lu = all_user_feature(args.U, args.T)
     user_requests = {"Uf": Uf, "Pu": Pu, "Su": Su, "Ou": Ou, "Vu": Vu, "Lu": Lu}
@@ -255,7 +277,19 @@ def build_components(args, output_dir):
     # 兼容少数旧模块；主要实验数据仍保存在 output_dir。
     np.savez("user_requests.npz", **user_requests)
 
-    action_space_len, adj_matrix, user_lists = GenerateAdjacency(args.U, args.L, args.N)
+    hybrid = _is_hybrid(args)
+    if hybrid:
+        from gdrl.core.graph import GenerateAdjacency_hybrid
+        G = getattr(args, "G", 0)
+        V = getattr(args, "V", 0)
+        M = getattr(args, "M", 0)
+        action_space_len, adj_matrix, user_lists, _node_order = GenerateAdjacency_hybrid(
+            args.U, G, V, args.L, M
+        )
+    else:
+        from gdrl.core.graph import GenerateAdjacency
+        action_space_len, adj_matrix, user_lists = GenerateAdjacency(args.U, args.L, args.N)
+
     sparse_adj_matrix = torch.Tensor(adj_matrix).to_sparse()
     edge_index, _ = to_edge_index(sparse_adj_matrix)
     torch.save(edge_index, output_dir / "edge_index.pt")
@@ -264,18 +298,40 @@ def build_components(args, output_dir):
 
     # 保存静态边特征（归一化节点间距离），供 GATv2Conv 使用。
     # 必须在 build_components 中生成，以确保边数与当前场景匹配。
-    from gdrl.core.graph import compute_edge_attr as _cef
     from UserStatus import all_user_status as _aus
-    from gdrl.core.nodes import all_LEO_status as _als, all_HAPS_status as _ahs
+    from gdrl.core.nodes import all_LEO_status as _als
     _, _U_place = _aus(args.U)
     _, _LEO_place, _ = _als(args.L)
-    _, _HAPS_place, _ = _ahs(args.N)
     _ei_np = np.stack(np.where(adj_matrix > 0), axis=0)
-    _edge_attr = _cef(_ei_np, _U_place, _LEO_place, _HAPS_place, args.U, args.L, args.N)
+    if hybrid:
+        from gdrl.core.nodes import all_gNB_status as _ags, all_UAV_status as _avs, all_MEC_status as _ams
+        _, _gNB_place, _ = _ags(G)
+        _, _UAV_place, _ = _avs(V)
+        _, _MEC_place, _ = _ams(M)
+        # Build unified position array: UE | gNB | UAV | LEO | MEC (matches node_order)
+        _all_pos = np.concatenate([
+            np.asarray(_U_place, dtype=float).reshape(-1),
+            np.asarray(_gNB_place, dtype=float).reshape(-1),
+            np.asarray(_UAV_place, dtype=float).reshape(-1),
+            np.asarray(_LEO_place, dtype=float).reshape(-1),
+            np.asarray(_MEC_place, dtype=float).reshape(-1),
+        ])
+        _src = _ei_np[0]; _dst = _ei_np[1]
+        _dist = np.abs(_all_pos[_src] - _all_pos[_dst]).astype(np.float32)
+        _max_d = float(_dist.max()) if _dist.max() > 0 else 1.0
+        _edge_attr = torch.tensor((_dist / _max_d).reshape(-1, 1), dtype=torch.float32)
+    else:
+        from gdrl.core.graph import compute_edge_attr as _cef
+        from gdrl.core.nodes import all_HAPS_status as _ahs
+        _, _HAPS_place, _ = _ahs(args.N)
+        _edge_attr = _cef(_ei_np, _U_place, _LEO_place, _HAPS_place, args.U, args.L, args.N)
     torch.save(_edge_attr, output_dir / "edge_attr.pt")
     torch.save(_edge_attr, "edge_attr.pt")
 
-    autoencoder_dis = AutoencoderDis(16, action_space_len, args.U, user_lists, M1EncoderDis, M1DecoderDis)
+    if hybrid:
+        autoencoder_dis = AutoencoderPartial(16, action_space_len, args.U, user_lists, M1EncoderPartial, M1DecoderPartial)
+    else:
+        autoencoder_dis = AutoencoderDis(16, action_space_len, args.U, user_lists, M1EncoderDis, M1DecoderDis)
     autoencoder_con = AutoencoderCon(16, 2 * args.U, M1EncoderCon, M1DecoderCon)
     return user_requests, user_lists, autoencoder_dis, autoencoder_con, ResetFunction
 
@@ -283,7 +339,6 @@ def build_components(args, output_dir):
 def train_or_load_amn(args, autoencoder_dis, autoencoder_con, output_dir):
     """每个场景单独训练/加载 AMN，防止不同 U/L/N 的权重互相覆盖。"""
     from torch.utils.data import DataLoader, TensorDataset
-    from amp import M1DecoderCon, M1DecoderDis
 
     paths = amn_paths(args)
     paths["dir"].mkdir(parents=True, exist_ok=True)
@@ -374,7 +429,8 @@ def make_raw_env(args, user_requests, user_lists, encoder_dis, encoder_con, Rese
     save_var, load_var = make_state_store(args, ResetFunction)
     env = NetworkEnvironment(
         args.U, args.L, args.N, args.T, user_requests, user_lists,
-        save_var, load_var, encoder_dis, encoder_con
+        save_var, load_var, encoder_dis, encoder_con,
+        G=getattr(args, 'G', 0), V=getattr(args, 'V', 0), M=getattr(args, 'M', 0)
     )
     if monitor_path is not None:
         env = Monitor(env, filename=str(monitor_path), allow_early_resets=True)
@@ -393,6 +449,7 @@ def evaluate_random(args, user_requests, user_lists, encoder_dis, encoder_con, R
     episode_rewards = []
     step_latencies = []
     step_energies = []
+    step_decisions = []
     obs, _ = env.reset()
 
     current_reward = 0.0
@@ -403,13 +460,15 @@ def evaluate_random(args, user_requests, user_lists, encoder_dis, encoder_con, R
         if info.get("latency") is not None:
             step_latencies.append(to_float(info["latency"]))
         step_energies.append(float(info.get("energy", 0.0)))
+        if info.get("decisions") is not None:
+            step_decisions.append(info["decisions"])
         if terminated or truncated:
             episode_rewards.append(current_reward)
             current_reward = 0.0
             obs, _ = env.reset()
 
     env.close()
-    return episode_rewards, step_latencies, step_energies, 0.0
+    return episode_rewards, step_latencies, step_energies, step_decisions, 0.0
 
 
 def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_con,
@@ -435,21 +494,21 @@ def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_c
         )
         model = TRPO("MlpPolicy", env, policy_kwargs=policy_kwargs, n_steps=args.T,
                      batch_size=args.T, learning_rate=3e-4, cg_damping=0.2,
-                     target_kl=0.005, verbose=0, device=args.device, seed=args.seed)
+                     target_kl=0.005, verbose=1, device=args.device, seed=args.seed)
     elif method == "trpo_mlp":
         policy_kwargs = dict(
             activation_fn=torch.nn.Sigmoid,
             net_arch=dict(pi=[32, 32], vf=[16, 4]),
         )
         model = TRPO("MlpPolicy", env, policy_kwargs=policy_kwargs, n_steps=args.T,
-                     batch_size=args.T, verbose=0, device=args.device, seed=args.seed)
+                     batch_size=args.T, verbose=1, device=args.device, seed=args.seed)
     elif method == "ppo_mlp":
         policy_kwargs = dict(
             activation_fn=torch.nn.Sigmoid,
             net_arch=dict(pi=[32, 32], vf=[16, 4]),
         )
         model = PPO("MlpPolicy", env, policy_kwargs=policy_kwargs, n_steps=args.T,
-                    batch_size=args.T, verbose=0, device=args.device, seed=args.seed)
+                    batch_size=args.T, verbose=1, device=args.device, seed=args.seed)
     elif method == "gdrl_sac":
         from stable_baselines3 import SAC
         policy_kwargs = dict(
@@ -464,7 +523,7 @@ def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_c
                     batch_size=getattr(args, 'sac_batch_size', 256),
                     tau=getattr(args, 'sac_tau', 0.005),
                     gamma=0.995,
-                    verbose=0, device=args.device, seed=args.seed)
+                    verbose=1, device=args.device, seed=args.seed)
     else:
         raise ValueError(f"Unknown trainable method: {method}")
 
@@ -481,7 +540,7 @@ def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_c
         else:
             print(f"Saved AMN weights to {paths['dir']}")
     env.close()
-    return callback.episode_rewards, callback.step_latencies, callback.step_energies, elapsed
+    return callback.episode_rewards, callback.step_latencies, callback.step_energies, callback.step_decisions, elapsed
 
 
 def summarize(method, episode_rewards, step_latencies, step_energies, elapsed):
@@ -542,17 +601,21 @@ def main():
         torch.cuda.empty_cache()
 
         if method == "random":
-            episode_rewards, step_latencies, step_energies, elapsed = evaluate_random(
+            episode_rewards, step_latencies, step_energies, step_decisions, elapsed = evaluate_random(
                 args, user_requests, user_lists, encoder_dis, encoder_con, ResetFunction
             )
         else:
-            episode_rewards, step_latencies, step_energies, elapsed = train_method(
+            episode_rewards, step_latencies, step_energies, step_decisions, elapsed = train_method(
                 args, method, user_requests, user_lists, encoder_dis, encoder_con,
                 autoencoder_dis, autoencoder_con, ResetFunction, output_dir
             )
 
         np.save(output_dir / f"latency_{method}.npy", np.asarray(step_latencies, dtype=float))
         np.save(output_dir / f"energy_{method}.npy", np.asarray(step_energies, dtype=float))
+        if step_decisions:
+            import pickle
+            with open(output_dir / f"decisions_{method}.pkl", "wb") as f:
+                pickle.dump(step_decisions, f)
         row = summarize(method, episode_rewards, step_latencies, step_energies, elapsed)
         rows.append(row)
         for episode, reward in enumerate(episode_rewards, start=1):
