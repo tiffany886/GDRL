@@ -42,6 +42,15 @@ user_requests.npz
 user_requests.npz.npy
 action*.npy
 latency*.npy
+energy*.npy
+tmp_show_results.py
+
+# ── 临时目录 ─────────────────────────────────────────────────
+tmp/
+logs/
+
+# ── pytest 缓存 ──────────────────────────────────────────────
+.pytest_cache/
 
 # ── Conda / pip 虚拟环境 ─────────────────────────────────────
 gdrl_gpu/
