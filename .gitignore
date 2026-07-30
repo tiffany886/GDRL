@@ -16,7 +16,7 @@ __pycache__/
 model_save/
 
 # ── 实验输出（可复现的中间结果，不入库）──────────────────────
-experiments/*/
+experiments/*
 !experiments/scenario_overview_figures/
 
 # ── 旧版临时结果目录 ─────────────────────────────────────────
