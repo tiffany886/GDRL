@@ -26,6 +26,36 @@ SCENARIOS = {
         "T": 100,
         "description": "大规模场景：当前编码范围内较复杂的 SAGIN 拓扑。",
     },
+    "hybrid_small": {
+        "U": 5,
+        "G": 2,
+        "V": 4,
+        "L": 8,
+        "M": 1,
+        "N": 0,
+        "T": 100,
+        "description": "小规模混合场景：5层异构SAGIN（用户-gNB-UAV-LEO-MEC）快速验证。",
+    },
+    "hybrid_medium": {
+        "U": 10,
+        "G": 3,
+        "V": 6,
+        "L": 10,
+        "M": 2,
+        "N": 0,
+        "T": 100,
+        "description": "中规模混合场景：10用户，21基础设施节点，obs_dim=145，论文主实验场景。",
+    },
+    "hybrid_large": {
+        "U": 15,
+        "G": 4,
+        "V": 8,
+        "L": 12,
+        "M": 3,
+        "N": 0,
+        "T": 100,
+        "description": "大规模混合场景：15用户，27基础设施节点，obs_dim=203，扩展性验证。",
+    },
 }
 
 
@@ -51,7 +81,7 @@ def add_scenario_arguments(parser):
 
 
 def apply_scenario(args):
-    """把 small/medium/large 的参数写回 args，兼容原来的手动 U/L/N/T 用法。"""
+    """把 small/medium/large/hybrid_small 的参数写回 args，兼容原来的手动 U/L/N/T 用法。"""
     scenario = getattr(args, "scenario", "custom")
     if scenario != "custom":
         cfg = SCENARIOS[scenario]
@@ -59,6 +89,13 @@ def apply_scenario(args):
         args.L = cfg["L"]
         args.N = cfg["N"]
         args.T = cfg["T"]
+        # Hybrid scenarios also set G, V, M
+        if "G" in cfg:
+            args.G = cfg["G"]
+        if "V" in cfg:
+            args.V = cfg["V"]
+        if "M" in cfg:
+            args.M = cfg["M"]
     return args
 
 
