@@ -135,7 +135,9 @@ def GenerateAdjacency(U, L, N):
         for i in np.where(Adj_Matrix[u + U + L + 1, U + L:U + L + N] == 1)[0]:
             binary_u.append("110" + _node_bits(i))
         binary_u.append("0010000")   # 本地执行选项
-        user_lists[u] = list(set(binary_u))
+        # Keep a stable candidate order so AMN logits map to the same actions
+        # across runs and Python hash seeds.
+        user_lists[u] = sorted(set(binary_u))
 
     # 二进制字符串 → 十进制整数
     user_lists_new = {u: [int(b, 2) for b in user_lists[u]] for u in range(U)}
@@ -288,7 +290,9 @@ def GenerateAdjacency_hybrid(U, G, V, L, M):
         # 本地执行
         actions.append(_encode_action_12bit(_TYPE_GNB, 0, 1, 0))  # 本地用 gNB type + local bit
 
-        user_lists[u] = list(set(actions))
+        # Keep a stable candidate order so AMN logits map to the same actions
+        # across runs and Python hash seeds.
+        user_lists[u] = sorted(set(actions))
 
     user_lists_new = {u: [int(b, 2) for b in user_lists[u]] for u in range(U)}
     action_space_len = sum(len(user_lists_new[u]) for u in range(U))

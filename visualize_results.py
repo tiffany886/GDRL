@@ -10,7 +10,8 @@ METHOD_LABELS = {
     "random": "Random",
     "trpo_mlp": "TRPO-MLP",
     "ppo_mlp": "PPO-MLP",
-    "gdrl": "GDRL",
+    "gdrl": "GDRL (GCN+TRPO)",
+    "gdrl_sac": "GDRL-SAC (GCN+SAC)",
 }
 
 COLORS = {
@@ -18,6 +19,7 @@ COLORS = {
     "trpo_mlp": "#e07a5f",
     "ppo_mlp": "#3d5a80",
     "gdrl": "#2a9d8f",
+    "gdrl_sac": "#f4a261",
 }
 
 

@@ -40,6 +40,8 @@ def parse_args():
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--amn_epochs", type=int, default=100)
+    parser.add_argument("--log_interval", type=int, default=50,
+                        help="每隔多少个 episode 打印一次训练/评估进度；设为 0 可关闭。")
     parser.add_argument("--force_retrain_amn", action="store_true")
     parser.add_argument(
         "--online_amn_update",
@@ -100,12 +102,16 @@ def configure_project_argv(args):
 class MetricsCallback(BaseCallback):
     def __init__(self, autoencoder_dis=None, autoencoder_con=None, online_update=False,
                  update_epochs=1, update_batch_size=100, online_update_interval=10,
-                 online_warmup_episodes=20, replay_episode_capacity=20):
+                 online_warmup_episodes=20, replay_episode_capacity=20,
+                 method="method", log_interval=50):
         super().__init__()
         self.episode_rewards = []
         self.step_latencies = []
         self.step_energies = []
         self.step_decisions = []
+        self.method = method
+        self.log_interval = max(0, int(log_interval))
+        self._start_time = time.time()
         self._current_episode_latents = []
         self._recent_episode_latents = deque(maxlen=max(1, int(replay_episode_capacity)))
         self.online_update_losses = []
@@ -143,7 +149,19 @@ class MetricsCallback(BaseCallback):
             if decisions is not None:
                 self.step_decisions.append(decisions)
             if "episode" in info:
-                self.episode_rewards.append(float(info["episode"]["r"]))
+                episode_reward = float(info["episode"]["r"])
+                self.episode_rewards.append(episode_reward)
+                episode_count = len(self.episode_rewards)
+                if self.log_interval and episode_count % self.log_interval == 0:
+                    recent = self.episode_rewards[-self.log_interval:]
+                    recent_mean = float(np.mean(recent)) if recent else episode_reward
+                    elapsed = time.time() - self._start_time
+                    print(
+                        f"[{self.method}] episode={episode_count} "
+                        f"reward={episode_reward:.3f} recent_mean={recent_mean:.3f} "
+                        f"elapsed={elapsed:.1f}s",
+                        flush=True,
+                    )
         if self.online_update and action_array is not None:
             for index, info in enumerate(infos):
                 if index < len(action_array):
@@ -450,6 +468,7 @@ def evaluate_random(args, user_requests, user_lists, encoder_dis, encoder_con, R
     step_latencies = []
     step_energies = []
     step_decisions = []
+    start = time.time()
     obs, _ = env.reset()
 
     current_reward = 0.0
@@ -464,6 +483,16 @@ def evaluate_random(args, user_requests, user_lists, encoder_dis, encoder_con, R
             step_decisions.append(info["decisions"])
         if terminated or truncated:
             episode_rewards.append(current_reward)
+            episode_count = len(episode_rewards)
+            log_interval = max(0, int(getattr(args, "log_interval", 50)))
+            if log_interval and episode_count % log_interval == 0:
+                recent = episode_rewards[-log_interval:]
+                print(
+                    f"[random] episode={episode_count} "
+                    f"reward={current_reward:.3f} recent_mean={float(np.mean(recent)):.3f} "
+                    f"elapsed={time.time() - start:.1f}s",
+                    flush=True,
+                )
             current_reward = 0.0
             obs, _ = env.reset()
 
@@ -482,6 +511,8 @@ def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_c
         online_update=(method == "gdrl" and args.online_amn_update),
         update_epochs=1,
         update_batch_size=args.T,
+        method=method,
+        log_interval=getattr(args, "log_interval", 50),
     )
     total_timesteps = args.episodes * args.T
 
@@ -564,6 +595,36 @@ def summarize(method, episode_rewards, step_latencies, step_energies, elapsed):
     }
 
 
+def print_decision_summary(method, step_decisions, expected_users):
+    if not step_decisions:
+        print(f"[{method}] decisions: no structured decision info recorded", flush=True)
+        return
+
+    node_counts = {}
+    ratios = []
+    local_flags = []
+    invalid_counts = {}
+    for decisions in step_decisions:
+        for node_type in decisions.get("node_types", []):
+            node_counts[node_type] = node_counts.get(node_type, 0) + 1
+        ratios.extend(float(value) for value in decisions.get("offload_ratios", []))
+        local_flags.extend(bool(value) for value in decisions.get("is_local", []))
+        reason = decisions.get("invalid_reason")
+        if reason:
+            invalid_counts[reason] = invalid_counts.get(reason, 0) + 1
+
+    total_users = len(ratios)
+    target_users = len(step_decisions) * int(expected_users)
+    ratio_mean = float(np.mean(ratios)) if ratios else 0.0
+    local_rate = float(np.mean(local_flags)) if local_flags else 0.0
+    print(
+        f"[{method}] decisions: users={total_users}/{target_users} "
+        f"nodes={node_counts} ratio_mean={ratio_mean:.3f} "
+        f"local_rate={local_rate:.3f} invalid={invalid_counts}",
+        flush=True,
+    )
+
+
 def write_csv(path, rows):
     if not rows:
         return
@@ -599,6 +660,11 @@ def main():
     for index, method in enumerate(args.methods):
         set_seed(args.seed + index)
         torch.cuda.empty_cache()
+        print(
+            f"\n=== Start {method} ({args.episodes} episodes, T={args.T}, "
+            f"log_interval={args.log_interval}) ===",
+            flush=True,
+        )
 
         if method == "random":
             episode_rewards, step_latencies, step_energies, step_decisions, elapsed = evaluate_random(
@@ -618,6 +684,7 @@ def main():
                 pickle.dump(step_decisions, f)
         row = summarize(method, episode_rewards, step_latencies, step_energies, elapsed)
         rows.append(row)
+        print_decision_summary(method, step_decisions, args.U)
         for episode, reward in enumerate(episode_rewards, start=1):
             detail_rows.append({"method": method, "episode": episode, "reward": float(reward)})
 

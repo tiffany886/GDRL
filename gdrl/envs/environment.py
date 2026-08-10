@@ -30,6 +30,15 @@ class NetworkEnvironment(gym.Env):
     MIN_RATE = 1.0
     MAX_LATENCY_SECONDS = 1.0
 
+    @staticmethod
+    def _decision_info(decisions, invalid_reason=None, invalid_user_index=None):
+        return {
+            'decisions': decisions,
+            'processed_users': len(decisions['node_types']),
+            'invalid_reason': invalid_reason,
+            'invalid_user_index': invalid_user_index,
+        }
+
     def __init__(self, U, L, N, T, user_requests, user_lists, save_var, load_var, encoder_dis, encoder_con,
                  G=0, V=0, M=0):
         super(NetworkEnvironment, self).__init__()
@@ -235,6 +244,8 @@ class NetworkEnvironment(gym.Env):
         C_g_new = self._C_g.copy(); C_v_new = self._C_v.copy(); C_m_new = self._C_m.copy()
         reward = 0; latency_sum = 0.0; energy_sum = 0.0; u = 0
         decisions = {'node_types': [], 'offload_ratios': [], 'is_local': []}
+        invalid_reason = None
+        invalid_user_index = None
 
         for part in parts:
             part = part.reshape(-1).tolist()
@@ -270,10 +281,21 @@ class NetworkEnvironment(gym.Env):
                     C_node = C_m_new; C_node_ori = self._C_m_ori; node_place = self._MEC_place
                     C_resource = self._C_resource_m; node_name = "mec"
 
-                if len(C_node) == 0 or C_node[node_idx] == 0:
-                    reward -= 5; break
+                if len(C_node) == 0:
+                    invalid_reason = f"{node_name}_missing"
+                    invalid_user_index = u
+                    reward -= 5
+                    break
+                if C_node[node_idx] == 0:
+                    invalid_reason = f"{node_name}_resource_zero"
+                    invalid_user_index = u
+                    reward -= 5
+                    break
                 if A_u_new == 0:
-                    reward -= 5; break
+                    invalid_reason = "channel_resource_zero"
+                    invalid_user_index = u
+                    reward -= 5
+                    break
 
                 # 部分卸载比例：offload_ratio 来自 M1EncoderPartial，否则默认全量卸载
                 or_ = float(offload_ratio[u].item()) if offload_ratio is not None else 1.0
@@ -338,7 +360,11 @@ class NetworkEnvironment(gym.Env):
                      user_status, A_u_new, A_u_ori, A_resource, counter)
         done = (counter == self.T)
         if not np.isfinite(reward): reward = -float(self.U) * 1e4
-        info = {'latency': latency_sum, 'energy': energy_sum, 'decisions': decisions}
+        info = {
+            'latency': latency_sum,
+            'energy': energy_sum,
+            **self._decision_info(decisions, invalid_reason, invalid_user_index),
+        }
         return state, float(reward), done, False, info
 
     def reset(self, seed=None, options=None):

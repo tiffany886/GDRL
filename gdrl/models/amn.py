@@ -19,6 +19,7 @@ import torch.nn.functional as F
 
 class M1EncoderDis(nn.Module):
     """离散动作编码器：LSTM + FNN → 每个用户的卸载目标 softmax 分布。"""
+    LATENT_SKIP_SCALE = 0.25
 
     def __init__(self, input_dim, output_dim):
         super(M1EncoderDis, self).__init__()
@@ -31,13 +32,14 @@ class M1EncoderDis(nn.Module):
             nn.ReLU(),
             nn.Linear(64, self.output_dim),
         )
+        self.latent_skip = nn.Linear(self.input_dim, self.output_dim, bias=False)
 
     def forward(self, latent_action, user_lists, differentiable=False):
         x = latent_action
         batch_size = x.size(0)
         x, _ = self.lstm(x.unsqueeze(1))
         x = x.view(batch_size, -1)[:, -128:]
-        x = self.fnn_net(x)
+        x = self.fnn_net(x) + self.LATENT_SKIP_SCALE * self.latent_skip(latent_action)
 
         # 将 logits 按用户分割并做 softmax 归一化
         x_out = []
@@ -112,7 +114,6 @@ class M1EncoderCon(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 64), nn.ReLU(),
             nn.Linear(64, self.output_dim),
-            nn.Sigmoid()
         )
 
     def forward(self, latent_action):
@@ -122,9 +123,10 @@ class M1EncoderCon(nn.Module):
         x = self.fnn_net(x).reshape(x.size(0), -1, 2)
 
         # 计算资源份额：[MIN, 1.0]，防止 process_time 数值爆炸
-        compute_share = self.MIN_COMPUTE_SHARE + (1.0 - self.MIN_COMPUTE_SHARE) * x[:, :, 0]
+        compute_share = self.MIN_COMPUTE_SHARE + (1.0 - self.MIN_COMPUTE_SHARE) * torch.sigmoid(x[:, :, 0])
 
-        # 子信道份额：softmax 归一化后加下限，保证每用户非零
+        # 子信道份额：直接用 raw logits 做 softmax。若先 sigmoid 到 [0, 1]，
+        # 不同 latent action 会被压得过平，训练型方法容易得到几乎相同的分配。
         user_count = x.size(1)
         channel_floor = min(self.MIN_CHANNEL_SHARE, 0.5 / user_count)
         channel_probs = F.softmax(x[:, :, 1], dim=1)
@@ -176,6 +178,7 @@ class M1EncoderPartial(nn.Module):
 
     STE 梯度策略与 M1EncoderDis 一致。
     """
+    LATENT_SKIP_SCALE = 0.25
 
     def __init__(self, input_dim, output_dim, U):
         super(M1EncoderPartial, self).__init__()
@@ -188,12 +191,12 @@ class M1EncoderPartial(nn.Module):
             nn.Linear(128, 64), nn.ReLU(),
             nn.Linear(64, self.output_dim),
         )
+        self.latent_skip = nn.Linear(self.input_dim, self.output_dim, bias=False)
         # 卸载比例头
         self.fnn_ratio = nn.Sequential(
             nn.ReLU(),
             nn.Linear(128, 64), nn.ReLU(),
             nn.Linear(64, self.U),
-            nn.Sigmoid(),  # 输出 0-1，表示卸载比例
         )
 
     def forward(self, latent_action, user_lists, differentiable=False):
@@ -203,7 +206,7 @@ class M1EncoderPartial(nn.Module):
         x = x.view(batch_size, -1)[:, -128:]
 
         # 离散动作分支（复用 M1EncoderDis 逻辑）
-        logits = self.fnn_dis(x)
+        logits = self.fnn_dis(x) + self.LATENT_SKIP_SCALE * self.latent_skip(latent_action)
         x_out = []
         index = 0
         for u in range(len(user_lists)):
@@ -225,7 +228,7 @@ class M1EncoderPartial(nn.Module):
         dis_action = torch.stack(all_action, dim=1)
 
         # 卸载比例分支
-        offload_ratio = self.fnn_ratio(x)  # [B, U]
+        offload_ratio = torch.sigmoid(self.fnn_ratio(x))  # [B, U]
 
         return dis_action, offload_ratio
 
