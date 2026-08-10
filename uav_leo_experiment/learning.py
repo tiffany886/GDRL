@@ -194,7 +194,8 @@ class PPOTrainer:
                  minibatch=128, rollout_steps=512, move_std=0.25):
         self.config = config
         self.U = config.users
-        self.policy = ActorCritic(obs_dim(config), self.U, hidden=hidden).to(DEVICE)
+        self.hidden = hidden
+        self.policy = self._make_policy().to(DEVICE)
         self.user_mask = np.zeros(MAX_USERS, dtype=np.float32)
         self.user_mask[: self.U] = 1.0
         self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=lr)
@@ -209,6 +210,10 @@ class PPOTrainer:
         self.move_std = move_std
         self.reward_rms = 1.0
         self.reward_mean = 0.0
+
+    def _make_policy(self):
+        """Factory for the actor-critic network (overridden by graph variants)."""
+        return ActorCritic(obs_dim(self.config), self.U, hidden=self.hidden)
 
     @torch.no_grad()
     def _rollout(self, env, steps):
@@ -281,7 +286,7 @@ class PPOTrainer:
         np.random.seed(seed)
         anchor_policy = None
         if kl_anchor is not None:
-            anchor_policy = ActorCritic(obs_dim(config), self.U)
+            anchor_policy = self._make_policy()
             anchor_policy.load_state_dict(kl_anchor)
             anchor_policy.to(DEVICE)
             anchor_policy.eval()
@@ -1398,3 +1403,395 @@ def _append_csv(path, row):
         if write_header:
             writer.writeheader()
         writer.writerow(row)
+
+
+# ---------------------------------------------------------------------------
+# P-D3QN: Dueling Double DQN with Prioritized Experience Replay
+#
+# Recent UAV-aided MEC / vehicular edge offloading baseline (2023-2024), e.g.
+# "Deep Reinforcement Learning-based Mining Task Offloading Scheme for
+# Intelligent Connected Vehicles in UAV-aided MEC" (2024) and "Task Offloading
+# via Prioritized Experience-Based Double Dueling DQN in Edge-Assisted IIoT"
+# (IEEE IoT-T, 2024). The dueling architecture separates state value from
+# per-action advantages and PER replays high-TD-error transitions more often.
+# ---------------------------------------------------------------------------
+class SumTree:
+    """Binary-sum tree for proportional prioritized experience replay."""
+
+    def __init__(self, capacity):
+        self.capacity = int(capacity)
+        self.tree = np.zeros(2 * self.capacity - 1, dtype=np.float64)
+        self.data = [None] * self.capacity
+        self.write = 0
+        self.n_entries = 0
+
+    def _propagate(self, idx, change):
+        parent = (idx - 1) // 2
+        self.tree[parent] += change
+        if parent != 0:
+            self._propagate(parent, change)
+
+    def add(self, priority, data):
+        idx = self.write + self.capacity - 1
+        self.data[self.write] = data
+        self.update(idx, priority)
+        self.write = (self.write + 1) % self.capacity
+        self.n_entries = min(self.n_entries + 1, self.capacity)
+
+    def update(self, idx, priority):
+        change = priority - self.tree[idx]
+        self.tree[idx] = priority
+        self._propagate(idx, change)
+
+    def get(self, s):
+        idx = 0
+        while True:
+            left = 2 * idx + 1
+            right = left + 1
+            if left >= len(self.tree):
+                break
+            if s <= self.tree[left]:
+                idx = left
+            else:
+                s -= self.tree[left]
+                idx = right
+        return idx, self.tree[idx], self.data[idx - self.capacity + 1]
+
+    @property
+    def total(self):
+        return float(self.tree[0])
+
+    @property
+    def max_priority(self):
+        if self.n_entries == 0:
+            return 1.0
+        return float(np.max(self.tree[self.capacity - 1:self.capacity - 1 + self.n_entries]))
+
+
+class DuelingDQN(nn.Module):
+    """Dueling Q-network: shared features, separate value and advantage streams."""
+
+    def __init__(self, obs_dim, U, n_actions=15, hidden=256):
+        super().__init__()
+        self.U = MAX_USERS
+        self.n_actions = n_actions
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden), nn.ReLU(),
+        )
+        self.value_head = nn.Linear(hidden, 1)
+        self.advantage_head = nn.Linear(hidden, self.U * n_actions)
+
+    def forward(self, obs):
+        features = self.net(obs)
+        value = self.value_head(features).unsqueeze(-1)          # (B, 1, 1)
+        advantage = self.advantage_head(features).view(-1, self.U, self.n_actions)
+        return value + advantage - advantage.mean(dim=-1, keepdim=True)
+
+
+class D3QNTrainer(DQNTrainer):
+    """P-D3QN (dueling + double Q + prioritized replay) offloading baseline."""
+
+    name = "d3qn"
+    net_class = DuelingDQN
+
+    def __init__(self, config, lr=1.0e-3, gamma=0.99, batch_size=128, buffer_size=100000,
+                 target_update=500, eps_start=1.0, eps_end=0.05, eps_decay=0.9995,
+                 per_alpha=0.6, per_beta_start=0.4, per_beta_steps=60000):
+        self.per_alpha = per_alpha
+        self.per_beta_start = per_beta_start
+        self.per_beta_steps = per_beta_steps
+        self.beta = per_beta_start
+        self.tree = SumTree(buffer_size)
+        super().__init__(config, lr=lr, gamma=gamma, batch_size=batch_size,
+                         buffer_size=buffer_size, target_update=target_update,
+                         eps_start=eps_start, eps_end=eps_end, eps_decay=eps_decay,
+                         double_q=True)
+
+    def store(self, state, action, reward, next_state, done):
+        self.tree.add(self.tree.max_priority, (state, action, reward, next_state, done))
+
+    def _sample_batch(self):
+        n = self.batch_size
+        segment = self.tree.total / n
+        batch, idxs = [], []
+        for i in range(n):
+            s = np.random.uniform(segment * i, segment * (i + 1))
+            idx, _, data = self.tree.get(s)
+            idxs.append(idx)
+            batch.append(data)
+        probs = np.array([self.tree.tree[idx] / max(self.tree.total, 1.0) for idx in idxs])
+        weights = (self.tree.n_entries * probs) ** (-self.beta)
+        weights = weights / max(float(weights.max()), 1.0e-8)
+        return batch, idxs, weights.astype(np.float32)
+
+    def train_step(self):
+        if self.tree.n_entries < self.batch_size:
+            return 0.0
+        self.beta = min(1.0, self.per_beta_start
+                        + (self.steps + 1) / max(self.per_beta_steps, 1)
+                        * (1.0 - self.per_beta_start))
+        batch, idxs, weights = self._sample_batch()
+        states = torch.from_numpy(np.stack([b[0] for b in batch])).to(DEVICE)
+        next_states = torch.from_numpy(np.stack([b[3] for b in batch])).to(DEVICE)
+        rewards = torch.from_numpy(np.array([b[2] for b in batch], dtype=np.float32)).to(DEVICE)
+        dones = torch.from_numpy(np.array([b[4] for b in batch], dtype=np.float32)).to(DEVICE)
+        raw_targets = np.stack([b[1][0] for b in batch])
+        raw_ratios = np.stack([b[1][1] for b in batch])
+        targets = np.zeros((len(batch), MAX_USERS), dtype=np.int64)
+        ratios = np.zeros((len(batch), MAX_USERS), dtype=np.float32)
+        targets[:, : self.U] = raw_targets
+        ratios[:, : self.U] = raw_ratios
+        targets = torch.from_numpy(targets).long().to(DEVICE)
+        ratios = torch.from_numpy(ratios).float().to(DEVICE)
+        action_ids = torch.zeros_like(targets)
+        for a in range(len(self.ratio_grid)):
+            action_ids = torch.where((targets == 0) & (ratios == self.ratio_grid[a]), a, action_ids)
+            action_ids = torch.where((targets == 1) & (ratios == self.ratio_grid[a]), len(self.ratio_grid) + a, action_ids)
+            action_ids = torch.where((targets == 2) & (ratios == self.ratio_grid[a]), 2 * len(self.ratio_grid) + a, action_ids)
+        q = self.q_net(states)
+        mask_b = torch.from_numpy(self.user_mask).to(DEVICE)
+        q_values = (q.gather(2, action_ids.unsqueeze(-1)).squeeze(-1) * mask_b).sum(-1)
+        with torch.no_grad():
+            next_online = self.q_net(next_states)
+            next_ids = next_online.argmax(-1).unsqueeze(-1)
+            next_q = (self.target_net(next_states).gather(2, next_ids).squeeze(-1) * mask_b).sum(-1)
+            target = rewards + self.gamma * (1.0 - dones) * next_q
+        td = q_values - target
+        loss = (torch.from_numpy(weights).to(DEVICE) * td.pow(2)).mean()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        priorities = (td.detach().abs().cpu().numpy() + 1.0e-6) ** self.per_alpha
+        for idx, priority in zip(idxs, priorities):
+            self.tree.update(idx, float(priority))
+        self.steps += 1
+        if self.steps % self.target_update == 0:
+            self.target_net.load_state_dict(self.q_net.state_dict())
+        self.eps = max(self.eps * self.eps_decay, self.eps_end)
+        return float(loss.item())
+
+
+class D3QNPolicy(DQNPolicy):
+    """Evaluation wrapper: P-D3QN agent as a BasePolicy."""
+
+    name = "d3qn"
+
+    def __init__(self, model_path=None, trainer=None):
+        super().__init__(model_path=model_path, trainer=trainer)
+
+    def act(self, obs, rng, config):
+        if self.trainer is None:
+            self.trainer = D3QNTrainer.load(self.model_path, config)
+        targets, ratios = self.trainer.act(make_obs_vec(config, obs), epsilon=0.0)
+        tea = OptimizedPartialPolicy()
+        action = tea.act(obs, rng, config)
+        return {"targets": targets[: config.users].astype(int),
+                "ratios": ratios[: config.users],
+                "move": action["move"]}
+
+
+# ---------------------------------------------------------------------------
+# Graph-attention / Transformer PPO
+#
+# Implements the graph-encoding DRL baselines from recent V2X / MEC offloading
+# papers (2024-2025): a GAT encoder ("Cooperative Multiagent DRL for UAV-aided
+# MEC", IEEE IoT-J 2024; "Optimizing vehicular edge computing: graph-based
+# DQN", J. Supercomputing 2024) or a Transformer encoder ("Towards Task Number
+# Adaptive Offloading in MEC Systems: A Transformer-based DRL Approach",
+# VTC 2025-Spring) over the per-user observation block, followed by the same
+# PPO actor-critic heads as the standard PPO baseline.
+# ---------------------------------------------------------------------------
+def split_obs_tensor(config, obs):
+    """Slice the flat obs into (global, user_block, valid, tea blocks).
+
+    Must stay in sync with make_obs_vec(): 8 global features (+5 hotspot),
+    11 features per user padded to MAX_USERS, the validity mask, the TEA
+    action prior (one-hot targets, ratios, move).
+    """
+    hotspot_extra = 5 if config.hotspot_motion else 0
+    g = 8 + hotspot_extra
+    user_block = obs[:, g:g + 11 * MAX_USERS].reshape(obs.shape[0], MAX_USERS, 11)
+    valid = obs[:, g + 11 * MAX_USERS:g + 12 * MAX_USERS]
+    tea_targets = obs[:, g + 12 * MAX_USERS:g + 15 * MAX_USERS].reshape(obs.shape[0], MAX_USERS, 3)
+    tea_ratios = obs[:, g + 15 * MAX_USERS:g + 16 * MAX_USERS]
+    tea_move = obs[:, g + 16 * MAX_USERS:g + 16 * MAX_USERS + 2]
+    return user_block, valid, tea_targets, tea_ratios, tea_move
+
+
+class GATLayer(nn.Module):
+    """Multi-head graph attention over the (fully connected) user graph."""
+
+    def __init__(self, in_dim, out_dim, heads=4, negative_slope=0.2):
+        super().__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.heads = heads
+        self.W = nn.Linear(in_dim, out_dim * heads, bias=False)
+        self.a = nn.Parameter(torch.zeros(2 * out_dim, heads))
+        nn.init.xavier_uniform_(self.a)
+        self.leaky = nn.LeakyReLU(negative_slope)
+
+    def forward(self, x, mask):
+        B, N, _ = x.shape
+        h = self.W(x).view(B, N, self.heads, self.out_dim)
+        adj = mask.unsqueeze(1) * mask.unsqueeze(2)  # (B, N, N) valid-pair mask
+        outs = []
+        for hidx in range(self.heads):
+            a = self.a[:, hidx]
+            hi = h[:, :, hidx, :]
+            pair = torch.cat([
+                hi.unsqueeze(2).expand(B, N, N, self.out_dim),
+                hi.unsqueeze(1).expand(B, N, N, self.out_dim),
+            ], dim=-1)
+            e = (pair * a).sum(-1)
+            e = self.leaky(e)
+            # finite negative fill instead of -inf so fully-masked (padding)
+            # rows still softmax to a finite uniform vector (no NaN)
+            e = e.masked_fill(adj == 0, -1e9)
+            attn = torch.softmax(e, dim=-1)
+            outs.append(torch.einsum("bij,bjo->bio", attn, hi))
+        return torch.stack(outs, dim=-1).mean(-1)
+
+
+class GraphEncoder(nn.Module):
+    """GAT or Transformer encoder over the per-user node features."""
+
+    def __init__(self, node_dim=11, hidden=96, heads=4, layers=2, mode="gat", dropout=0.0):
+        super().__init__()
+        self.mode = mode
+        self.hidden = hidden
+        self.heads = heads
+        self.input_proj = nn.Linear(node_dim, hidden)
+        if mode == "gat":
+            self.body = nn.ModuleList(
+                [GATLayer(hidden, hidden, heads) for _ in range(layers)])
+        else:
+            enc_layer = nn.TransformerEncoderLayer(
+                d_model=hidden, nhead=heads, dim_feedforward=hidden * 4,
+                dropout=dropout, batch_first=True)
+            self.body = nn.TransformerEncoder(enc_layer, num_layers=layers)
+
+    def forward(self, nodes, valid):
+        x = torch.tanh(self.input_proj(nodes))
+        if self.mode == "gat":
+            for layer in self.body:
+                x = layer(x, valid)
+        else:
+            key_pad = valid < 0.5  # True marks padding for the attention mask
+            x = self.body(x, src_key_padding_mask=key_pad)
+        mask = valid.unsqueeze(-1)  # (B, N, 1)
+        xm = x * mask
+        pooled_mean = xm.sum(1) / mask.sum(1).clamp(min=1.0)
+        pooled_max = xm.masked_fill(mask == 0, -1e9).max(1).values
+        return torch.cat([pooled_mean, pooled_max], dim=-1)
+
+
+class GraphActorCritic(nn.Module):
+    """PPO actor-critic whose policy head consumes graph-pooled user features."""
+
+    def __init__(self, config, U, hidden=256, encoder="gat", enc_hidden=96, heads=4, layers=2):
+        super().__init__()
+        self.U = MAX_USERS
+        self.real_users = U
+        self.config = config
+        self.hotspot_extra = 5 if config.hotspot_motion else 0
+        self.global_dim = 8 + self.hotspot_extra
+        self.encoder = GraphEncoder(node_dim=11, hidden=enc_hidden, heads=heads,
+                                    layers=layers, mode=encoder)
+        tea_dim = 3 * MAX_USERS + MAX_USERS + 2 + MAX_USERS  # targets + ratios + move + valid
+        mlp_in = self.global_dim + 2 * enc_hidden + tea_dim
+        self.net = nn.Sequential(
+            nn.Linear(mlp_in, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden), nn.Tanh(),
+        )
+        self.policy_head = nn.Linear(hidden, 3 * self.U + 5 * self.U + 2)
+        self.value_head = nn.Linear(hidden, 1)
+
+    def forward(self, obs):
+        user_block, valid, tea_targets, tea_ratios, tea_move = split_obs_tensor(self.config, obs)
+        pooled = self.encoder(user_block, valid)
+        global_feats = obs[:, :self.global_dim]
+        tea_flat = torch.cat([tea_targets.reshape(obs.shape[0], -1), tea_ratios,
+                              tea_move, valid], dim=-1)
+        features = self.net(torch.cat([global_feats, pooled, tea_flat], dim=-1))
+        out = self.policy_head(features)
+        target_logits = out[:, :3 * self.U].reshape(-1, self.U, 3)
+        ratio_logits = out[:, 3 * self.U:8 * self.U].reshape(-1, self.U, 5)
+        move_raw = out[:, 8 * self.U:8 * self.U + 2]
+        value = self.value_head(features)
+        return target_logits, ratio_logits, move_raw, value
+
+    @torch.no_grad()
+    def act(self, obs, deterministic=False):
+        target_logits, ratio_logits, move_raw, _ = self.forward(obs)
+        grid_t = torch.from_numpy(RATIO_GRID).to(DEVICE)
+        if deterministic:
+            targets = torch.argmax(target_logits, dim=-1)
+            ratio_bins = torch.argmax(ratio_logits, dim=-1)
+            move = torch.tanh(move_raw)
+        else:
+            t_dist = torch.distributions.Categorical(logits=target_logits)
+            r_dist = torch.distributions.Categorical(logits=ratio_logits)
+            targets = t_dist.sample()
+            ratio_bins = r_dist.sample()
+            move_std = torch.ones_like(move_raw) * 0.25
+            move = torch.tanh(torch.distributions.Normal(move_raw, move_std).sample())
+        ratios = grid_t[ratio_bins]
+        return targets.cpu().numpy(), ratios.cpu().numpy(), move.cpu().numpy()
+
+
+class GraphPPOTrainer(PPOTrainer):
+    """PPO with a GAT / Transformer encoder (graph-attention DRL baseline)."""
+
+    def __init__(self, config, encoder="gat", enc_hidden=96, heads=4, layers=2,
+                 hidden=256, lr=3.0e-4, **kwargs):
+        self.encoder = encoder
+        self.enc_hidden = enc_hidden
+        self.heads = heads
+        self.layers = layers
+        self.lr = lr
+        super().__init__(config, hidden=hidden, lr=lr, **kwargs)
+        self.policy = self._make_policy().to(DEVICE)
+        self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=lr)
+
+    def _make_policy(self):
+        return GraphActorCritic(self.config, self.U, hidden=self.hidden,
+                                encoder=self.encoder, enc_hidden=self.enc_hidden,
+                                heads=self.heads, layers=self.layers)
+
+    def save(self, path):
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save({"state_dict": self.policy.state_dict(), "U": self.U,
+                    "obs_dim": obs_dim(self.config), "encoder": self.encoder,
+                    "enc_hidden": self.enc_hidden, "heads": self.heads,
+                    "layers": self.layers}, path)
+
+    @classmethod
+    def load(cls, path, config):
+        data = torch.load(path, map_location=DEVICE)
+        trainer = cls(config, encoder=data.get("encoder", "gat"),
+                      enc_hidden=data.get("enc_hidden", 96),
+                      heads=data.get("heads", 4), layers=data.get("layers", 2))
+        trainer.policy.load_state_dict(data["state_dict"])
+        trainer.policy.to(DEVICE)
+        return trainer
+
+
+class GraphPPOPolicy(BasePolicy):
+    """Evaluation wrapper: GAT / Transformer-PPO agent as a BasePolicy."""
+
+    def __init__(self, model_path=None, trainer=None, name="gat_ppo"):
+        self.name = name
+        self.trainer = trainer
+        self.model_path = model_path
+
+    def act(self, obs, rng, config):
+        if self.trainer is None:
+            self.trainer = GraphPPOTrainer.load(self.model_path, config)
+        obs_t = torch.from_numpy(make_obs_vec(config, obs)).unsqueeze(0).to(DEVICE)
+        targets, ratios, moves = self.trainer.policy.act(obs_t, deterministic=True)
+        return {"targets": targets[0][: config.users].astype(int),
+                "ratios": ratios[0][: config.users],
+                "move": moves[0] * config.uav_speed_max}

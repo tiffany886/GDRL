@@ -65,14 +65,17 @@ DIFF_SHORT = {"v2x_hotspot_hard": "Hard", "v2x_hotspot_stress": "Stress"}
 # Full comparison set used in bar charts (best first ordering is done later).
 METHOD_ORDER = [
     "gdrl", "mpc_traj_h3", "predict_tea", "follow_tea", "deadline_tea", "ppo",
-    "tea_partial", "energy_guarded_tea", "full_offload_tea", "greedy_partial",
-    "lyapunov", "dqn", "sac", "td3", "random",
+    "gat_ppo", "transformer_ppo", "d3qn", "tea_partial", "energy_guarded_tea",
+    "full_offload_tea", "greedy_partial", "lyapunov", "dqn", "sac", "td3",
+    "random",
 ]
 
 METHOD_LABELS = {
     "gdrl": "GDRL (ours)", "mpc_traj_h3": "MPC-H3",
     "predict_tea": "Predict-TEA", "follow_tea": "Follow-TEA",
     "deadline_tea": "Deadline-TEA", "ppo": "PPO (BC+KL)",
+    "gat_ppo": "GAT-PPO", "transformer_ppo": "Transformer-PPO",
+    "d3qn": "P-D3QN",
     "tea_partial": "TEA", "energy_guarded_tea": "E-Guard TEA",
     "full_offload_tea": "Full-offload", "greedy_partial": "Greedy",
     "lyapunov": "Lyapunov", "dqn": "DQN", "sac": "SAC", "td3": "TD3",
@@ -84,6 +87,7 @@ METHOD_LABELS = {
 COLORS = {
     "gdrl": "#C62828", "mpc_traj_h3": "#1565C0", "predict_tea": "#2E7D32",
     "follow_tea": "#6A1B9A", "deadline_tea": "#EF6C00", "ppo": "#455A64",
+    "gat_ppo": "#6D4C41", "transformer_ppo": "#8D6E63", "d3qn": "#AD1457",
     "tea_partial": "#00838F", "energy_guarded_tea": "#795548",
     "full_offload_tea": "#9E9D24", "greedy_partial": "#D81B60",
     "lyapunov": "#5D4037", "dqn": "#78909C", "sac": "#90A4AE",

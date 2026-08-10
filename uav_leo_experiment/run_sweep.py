@@ -61,6 +61,12 @@ def parse_args():
     parser.add_argument("--sac_medium", type=str, default="experiments/uav_leo_v2x/drl_models/sac/v2x_medium/model.pt")
     parser.add_argument("--sac_hard", type=str, default="experiments/uav_leo_v2x/drl_models/sac/v2x_hard/model.pt")
     parser.add_argument("--sac_stress", type=str, default="experiments/uav_leo_v2x/drl_models/sac/v2x_stress/model.pt")
+    parser.add_argument("--d3qn_hard", type=str, default="experiments/uav_leo_v2x/drl_models_v2/d3qn/v2x_hotspot_hard/model.pt")
+    parser.add_argument("--d3qn_stress", type=str, default="experiments/uav_leo_v2x/drl_models_v2/d3qn/v2x_hotspot_stress/model.pt")
+    parser.add_argument("--gat_ppo_hard", type=str, default="experiments/uav_leo_v2x/drl_models_v2/gat_ppo/v2x_hotspot_hard/model.pt")
+    parser.add_argument("--gat_ppo_stress", type=str, default="experiments/uav_leo_v2x/drl_models_v2/gat_ppo/v2x_hotspot_stress/model.pt")
+    parser.add_argument("--transformer_ppo_hard", type=str, default="experiments/uav_leo_v2x/drl_models_v2/transformer_ppo/v2x_hotspot_hard/model.pt")
+    parser.add_argument("--transformer_ppo_stress", type=str, default="experiments/uav_leo_v2x/drl_models_v2/transformer_ppo/v2x_hotspot_stress/model.pt")
     parser.add_argument("--gdrl_hard", type=str, default="experiments/uav_leo_v2x/drl_models_v2/gdrl/gdrl/v2x_hotspot_stress/model.pt",
                         help="GDRL model (trained on stress, zero-shot transferred to hard)")
     parser.add_argument("--gdrl_stress", type=str, default="experiments/uav_leo_v2x/drl_models_v2/gdrl/gdrl/v2x_hotspot_stress/model.pt")
@@ -141,6 +147,18 @@ def main():
         "v2x_hotspot_hard": args.sac_hard.replace("v2x_hard", "v2x_hotspot_hard"),
         "v2x_hotspot_stress": args.sac_stress.replace("v2x_stress", "v2x_hotspot_stress"),
     }
+    d3qn_paths = {
+        "v2x_hotspot_hard": args.d3qn_hard,
+        "v2x_hotspot_stress": args.d3qn_stress,
+    }
+    gat_ppo_paths = {
+        "v2x_hotspot_hard": args.gat_ppo_hard,
+        "v2x_hotspot_stress": args.gat_ppo_stress,
+    }
+    transformer_ppo_paths = {
+        "v2x_hotspot_hard": args.transformer_ppo_hard,
+        "v2x_hotspot_stress": args.transformer_ppo_stress,
+    }
     gdrl_paths = {
         "v2x_hotspot_hard": args.gdrl_hard,
         "v2x_hotspot_stress": args.gdrl_stress,
@@ -182,7 +200,16 @@ def main():
                 ddpg_model = None
             if sac_model and not Path(sac_model).exists():
                 sac_model = None
+            d3qn_model = d3qn_paths.get(difficulty)
+            gat_ppo_model = gat_ppo_paths.get(difficulty)
+            transformer_ppo_model = transformer_ppo_paths.get(difficulty)
             gdrl_model = gdrl_paths.get(difficulty)
+            if d3qn_model and not Path(d3qn_model).exists():
+                d3qn_model = None
+            if gat_ppo_model and not Path(gat_ppo_model).exists():
+                gat_ppo_model = None
+            if transformer_ppo_model and not Path(transformer_ppo_model).exists():
+                transformer_ppo_model = None
             if gdrl_model and not Path(gdrl_model).exists():
                 gdrl_model = None
             sweep_args = argparse.Namespace(
@@ -196,6 +223,9 @@ def main():
                 ppo_model=ppo_model,
                 dqn_model=dqn_model,
                 ddqn_model=ddqn_model,
+                d3qn_model=d3qn_model,
+                gat_ppo_model=gat_ppo_model,
+                transformer_ppo_model=transformer_ppo_model,
                 td3_model=td3_model,
                 ddpg_model=ddpg_model,
                 sac_model=sac_model,

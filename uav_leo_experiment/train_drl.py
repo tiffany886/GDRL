@@ -11,13 +11,14 @@ from .scenario_spec import MY_SCENARIOS, scenario_overrides
 
 def users_for(difficulty, default=5):
     return MY_SCENARIOS.get(difficulty, {}).get("users", default)
-from .learning import (DDPGTrainer, DDQNTrainer, DEVICE, DQNTrainer, PPOTrainer,
-                         SACTrainer, TD3Trainer, evaluate_policy)
+from .learning import (D3QNTrainer, DDPGTrainer, DDQNTrainer, DEVICE, DQNTrainer,
+                         GraphPPOTrainer, PPOTrainer, SACTrainer, TD3Trainer,
+                         evaluate_policy)
 from .traj_drl import TrajPPOTrainer, evaluate_traj_policy
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train PPO/DQN on UAV-LEO v2x.")
-    parser.add_argument("--method", choices=["ppo", "dqn", "ddqn", "td3", "ddpg", "sac", "gdrl"], default="ppo")
+    parser.add_argument("--method", choices=["ppo", "dqn", "ddqn", "d3qn", "td3", "ddpg", "sac", "gdrl", "gat_ppo", "transformer_ppo"], default="ppo")
     parser.add_argument("--difficulty", choices=sorted(DIFFICULTY_PRESETS), default="v2x_hard")
     parser.add_argument("--users", type=int, default=None)
     parser.add_argument("--leos", type=int, default=4)
@@ -91,7 +92,7 @@ def main():
         final = evaluate_policy(trainer, eval_env, episodes=10, deterministic=True)
         trainer.save(out / "model.pt")
 
-    if args.method == "gdrl":
+    elif args.method == "gdrl":
         # Residual trajectory PPO: delta = 0 reproduces the demand-predictive
         # expert exactly, so we start from a zero-initialized policy.
         trainer = TrajPPOTrainer(config, lr=args.lr, rollout_steps=args.rollout_steps,
@@ -167,6 +168,48 @@ def main():
             trainer.q_net.to(DEVICE)
             print("Loaded best eval checkpoint", flush=True)
         final = trainer.evaluate(eval_env, episodes=10)
+        trainer.save(out / "model.pt")
+    elif args.method == "d3qn":
+        trainer = D3QNTrainer(config, lr=args.lr, batch_size=args.batch_size)
+        trainer.train(env, steps=args.steps, eval_env=eval_env,
+                      eval_every=args.eval_every, log_path=out, seed=args.seed)
+        best_path = out / "model_best.pt"
+        if best_path.exists():
+            trainer.q_net.load_state_dict(torch.load(best_path, map_location="cpu")["state_dict"])
+            trainer.q_net.to(DEVICE)
+            print("Loaded best eval checkpoint", flush=True)
+        final = trainer.evaluate(eval_env, episodes=10)
+        trainer.save(out / "model.pt")
+    elif args.method in ("gat_ppo", "transformer_ppo"):
+        encoder = "gat" if args.method == "gat_ppo" else "transformer"
+        trainer = GraphPPOTrainer(config, encoder=encoder, lr=args.lr,
+                                  rollout_steps=args.rollout_steps,
+                                  minibatch=args.batch_size,
+                                  entropy_coef=args.entropy_coef if args.entropy_coef is not None else 0.003,
+                                  move_std=args.move_std)
+        if args.pretrain_steps > 0:
+            trainer.pretrain_expert(env, steps=args.pretrain_steps, seed=args.seed,
+                                    expert=args.pretrain_expert)
+            bc_score = evaluate_policy(trainer, eval_env, episodes=5, deterministic=True)
+            bc_state = {key: value.clone() for key, value in trainer.policy.state_dict().items()}
+            best_path = out / "model_best.pt"
+            if not best_path.exists() or bc_score > float(torch.load(best_path, map_location="cpu")["eval_reward"]):
+                torch.save({"state_dict": trainer.policy.state_dict(), "U": trainer.U,
+                            "eval_reward": bc_score}, best_path)
+            print(f"BC eval = {bc_score:.2f} (seeded model_best)", flush=True)
+        kl_anchor = None
+        if (args.kl_coef > 0.0 or args.critic_warmup_updates > 0) and args.pretrain_steps > 0:
+            kl_anchor = bc_state
+        trainer.train(env, steps=args.steps, eval_env=eval_env,
+                      eval_every=args.eval_every, log_path=out, seed=args.seed,
+                      kl_anchor=kl_anchor, kl_coef=args.kl_coef,
+                      critic_warmup_updates=args.critic_warmup_updates)
+        best_path = out / "model_best.pt"
+        if best_path.exists():
+            trainer.policy.load_state_dict(torch.load(best_path, map_location="cpu")["state_dict"])
+            trainer.policy.to(DEVICE)
+            print("Loaded best eval checkpoint", flush=True)
+        final = evaluate_policy(trainer, eval_env, episodes=10, deterministic=True)
         trainer.save(out / "model.pt")
     else:
         trainer = DQNTrainer(config, lr=args.lr, batch_size=args.batch_size)

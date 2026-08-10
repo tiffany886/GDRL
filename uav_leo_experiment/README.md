@@ -171,6 +171,45 @@ Sweep figures include:
 - `sweep_offload_ratio.png`
 - `sweep_latency_energy_tradeoff.png`
 
+## Recent-Literature DRL Baselines (2023-2025)
+
+Three recent-learning DRL baselines were added so the paper comparison targets
+state-of-the-art methods, not only classic DQN/PPO/TD3/SAC:
+
+- **P-D3QN** (`--method d3qn` in `train_drl.py`) ? dueling double DQN with
+  prioritized experience replay. Reference: *Deep RL-based Mining Task
+  Offloading for ICVs in UAV-aided MEC* (2024); *Task Offloading via
+  Prioritized Experience-Based Double Dueling DQN in Edge-Assisted IIoT*
+  (IEEE, 2024). Replaces the DQN Q-network with a dueling architecture and the
+  uniform replay buffer with a proportional-priority SumTree.
+- **GAT-PPO** (`--method gat_ppo`) ? PPO whose per-user observation block is
+  encoded by a multi-head graph attention (GAT) network before the actor-critic
+  heads. Reference: *Cooperative Multiagent DRL for UAV-Aided MEC Networks*
+  (IEEE IoT-J, 2024, GAT-based actor); *Optimizing vehicular edge computing:
+  graph-based double-DQN for intelligent task offloading* (J. Supercomputing,
+  2024).
+- **Transformer-PPO** (`--method transformer_ppo`) ? same hybrid actor-critic,
+  but the user encoder is a Transformer (multi-head self-attention) encoder.
+  Reference: *Towards Task Number Adaptive Offloading in MEC Systems: A
+  Transformer-based DRL Approach* (IEEE VTC 2025-Spring).
+
+Training (same budget as the PPO baseline: 40k steps, 12k BC pretraining from
+the Follow-TEA expert, KL anchor 0.05, critic warmup 10; P-D3QN gets 60k steps
+like DQN):
+
+```bash
+python -m uav_leo_experiment.train_drl --method d3qn --difficulty v2x_hotspot_hard --users 12 --steps 60000 --output_dir experiments/uav_leo_v2x/drl_models_v2
+python -m uav_leo_experiment.train_drl --method gat_ppo --difficulty v2x_hotspot_hard --users 12 --steps 40000 --pretrain_steps 12000 --pretrain_expert follow_tea --kl_coef 0.05 --critic_warmup_updates 10 --output_dir experiments/uav_leo_v2x/drl_models_v2
+python -m uav_leo_experiment.train_drl --method transformer_ppo --difficulty v2x_hotspot_hard --users 12 --steps 40000 --pretrain_steps 12000 --pretrain_expert follow_tea --kl_coef 0.05 --critic_warmup_updates 10 --output_dir experiments/uav_leo_v2x/drl_models_v2
+```
+
+Evaluation is wired through `run_experiment.py` (`--d3qn_model`,
+`--gat_ppo_model`, `--transformer_ppo_model`) and `run_sweep.py`
+(`--d3qn_hard/--d3qn_stress`, `--gat_ppo_hard/--gat_ppo_stress`,
+`--transformer_ppo_hard/--transformer_ppo_stress`). Results appear in the
+final table as **P-D3QN (2024)**, **GAT-PPO (2024)** and
+**Transformer-PPO (2025)**.
+
 ## Publication-quality figures (paper line)
 
 The authoritative 40-episode run in `experiments/uav_leo_v2x_paper_final/`

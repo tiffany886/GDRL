@@ -27,8 +27,10 @@ SHORT = {
     "full_offload_tea": "Full-offload", "greedy_partial": "Greedy", "lyapunov": "Lyapunov",
     "rate_aware": "Rate-aware", "uav_only": "UAV-only", "leo_only": "LEO-only",
     "local_only": "Local-only", "random": "Random", "ppo": "PPO (BC+KL)",
-    "dqn": "DQN", "td3": "TD3", "sac": "SAC", "genetic": "GA", "pso": "PSO",
-    "sa": "SA", "aco": "ACO", "exhaustive_optimal": "Exhaustive",
+    "dqn": "DQN", "d3qn": "P-D3QN (2024)", "gat_ppo": "GAT-PPO (2024)",
+    "transformer_ppo": "Transformer-PPO (2025)", "td3": "TD3", "sac": "SAC",
+    "genetic": "GA", "pso": "PSO", "sa": "SA", "aco": "ACO",
+    "exhaustive_optimal": "Exhaustive",
     "gdrl_no_traj": "GDRL - traj (expert move)", "gdrl_no_opt": "GDRL - exact offload",
     "mpc_traj_h3": "MPC-H3 (receding horizon)", "mpc_traj_h5": "MPC-H5 (receding horizon)",
     "qa_exact": "Queue-aware exact",
@@ -36,7 +38,7 @@ SHORT = {
 }
 GROUP = {
     "proposed": ["gdrl"],
-    "drl": ["ppo", "dqn", "td3", "sac"],
+    "drl": ["ppo", "dqn", "d3qn", "gat_ppo", "transformer_ppo", "td3", "sac"],
     "heuristic": ["predict_tea", "follow_tea", "deadline_tea", "tea_partial",
                   "energy_guarded_tea", "full_offload_tea", "greedy_partial", "lyapunov",
                   "rate_aware", "uav_only", "leo_only"],

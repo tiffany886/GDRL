@@ -13,7 +13,8 @@ from .baselines import default_policies
 from .config import ABLATION_PRESETS, DIFFICULTY_PRESETS, make_config
 from .env import UavLeoEnv
 from .scenario_spec import scenario_overrides
-from .learning import DDPGPolicy, DDQNPolicy, DQNPolicy, PPOPolicy, SACPolicy, TD3Policy
+from .learning import (D3QNPolicy, DDPGPolicy, DDQNPolicy, DQNPolicy, GraphPPOPolicy,
+                           PPOPolicy, SACPolicy, TD3Policy)
 from .traj_drl import GDRLPolicy
 
 
@@ -35,6 +36,10 @@ def parse_args():
     parser.add_argument("--ppo_model", type=str, default=None, help="Path to trained PPO model.pt")
     parser.add_argument("--dqn_model", type=str, default=None, help="Path to trained DQN model.pt")
     parser.add_argument("--ddqn_model", type=str, default=None, help="Path to trained DDQN model.pt")
+    parser.add_argument("--d3qn_model", type=str, default=None, help="Path to trained P-D3QN model.pt")
+    parser.add_argument("--gat_ppo_model", type=str, default=None, help="Path to trained GAT-PPO model.pt")
+    parser.add_argument("--transformer_ppo_model", type=str, default=None,
+                        help="Path to trained Transformer-PPO model.pt")
     parser.add_argument("--td3_model", type=str, default=None, help="Path to trained TD3 model.pt")
     parser.add_argument("--ddpg_model", type=str, default=None, help="Path to trained DDPG model.pt")
     parser.add_argument("--sac_model", type=str, default=None, help="Path to trained SAC model.pt")
@@ -86,6 +91,12 @@ def build_policies(args):
         policies.append(DQNPolicy(model_path=args.dqn_model))
     if getattr(args, "ddqn_model", None):
         policies.append(DDQNPolicy(model_path=args.ddqn_model))
+    if getattr(args, "d3qn_model", None):
+        policies.append(D3QNPolicy(model_path=args.d3qn_model))
+    if getattr(args, "gat_ppo_model", None):
+        policies.append(GraphPPOPolicy(model_path=args.gat_ppo_model, name="gat_ppo"))
+    if getattr(args, "transformer_ppo_model", None):
+        policies.append(GraphPPOPolicy(model_path=args.transformer_ppo_model, name="transformer_ppo"))
     if getattr(args, "td3_model", None):
         policies.append(TD3Policy(model_path=args.td3_model))
     if getattr(args, "ddpg_model", None):
