@@ -1,0 +1,5 @@
+@echo off
+cd /d C:\Users\Tiffany\Desktop\GDRL\GDRL
+set OMP_NUM_THREADS=4
+set MKL_NUM_THREADS=4
+C:\UserFiles\Anaconda3\python.exe -m uav_leo_experiment.run_sweep --difficulties v2x_hotspot_hard v2x_hotspot_stress --episodes 40 --horizon 30 --seed 73 --skip_slow --methods gdrl,predict_tea,follow_tea,deadline_tea,tea_partial,energy_guarded_tea,full_offload_tea,greedy_partial,lyapunov,ppo,dqn,td3,sac,random --output_dir experiments\uav_leo_v2x_paper_final --ppo_hard experiments\uav_leo_v2x_paper_final\models\ppo_hard.pt --ppo_stress experiments\uav_leo_v2x_paper_final\models\ppo_stress.pt --td3_hard experiments\uav_leo_v2x_paper_final\models\td3_hard.pt --td3_stress experiments\uav_leo_v2x_paper_final\models\td3_stress.pt --sac_hard experiments\uav_leo_v2x_paper_final\models\sac_hard.pt --sac_stress experiments\uav_leo_v2x_paper_final\models\sac_stress.pt --gdrl_hard experiments\uav_leo_v2x_paper_final\models\gdrl_hard.pt --gdrl_stress experiments\uav_leo_v2x_paper_final\models\gdrl_stress.pt --dqn_hard experiments\uav_leo_v2x_paper_final\models\dqn_hard.pt > experiments\uav_leo_v2x_paper_final\eval_40ep.log 2>&1

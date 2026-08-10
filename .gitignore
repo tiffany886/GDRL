@@ -82,3 +82,26 @@ matlab_crash_dump.*
 
 # ── 论文 PDF（版权问题，不入库）─────────────────────────────
 *.pdf
+
+# ?? ?????? / ????????????????????????????
+/_*.py
+/_*.bat
+/_*.log
+/_*.log.err
+/_snapshot_1600/
+
+# ?? ???????uav_leo_v2x_paper_final????????????
+!experiments/uav_leo_v2x_paper_final/
+experiments/uav_leo_v2x_paper_final/*
+!experiments/uav_leo_v2x_paper_final/figures/
+experiments/uav_leo_v2x_paper_final/figures/*
+!experiments/uav_leo_v2x_paper_final/figures/*.png
+!experiments/uav_leo_v2x_paper_final/models/
+experiments/uav_leo_v2x_paper_final/models/*
+!experiments/uav_leo_v2x_paper_final/models/*.pt
+!experiments/uav_leo_v2x_paper_final/paper_results.md
+!experiments/uav_leo_v2x_paper_final/gdrl_comparison.md
+!experiments/uav_leo_v2x_paper_final/sweep_summary.csv
+!experiments/uav_leo_v2x_paper_final/sweep_episodes.csv
+!experiments/uav_leo_v2x_paper_final/sweep_config.json
+!experiments/uav_leo_v2x_paper_final/eval_40ep.bat

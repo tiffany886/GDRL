@@ -1,0 +1,43 @@
+{
+  "difficulties": [
+    "v2x_hotspot_hard",
+    "v2x_hotspot_stress"
+  ],
+  "ablations": [
+    "none"
+  ],
+  "episodes": 40,
+  "horizon": 30,
+  "users": null,
+  "leos": 4,
+  "seed": 73,
+  "output_dir": "experiments\\uav_leo_v2x_paper_final",
+  "ppo_easy": "experiments/uav_leo_v2x/drl_models/ppo/v2x_easy/model.pt",
+  "ppo_medium": "experiments/uav_leo_v2x/drl_models/ppo/v2x_medium/model.pt",
+  "ppo_hard": "experiments\\uav_leo_v2x_paper_final\\models\\ppo_hard.pt",
+  "ppo_stress": "experiments\\uav_leo_v2x_paper_final\\models\\ppo_stress.pt",
+  "dqn_easy": "experiments/uav_leo_v2x/drl_models/dqn/v2x_easy/model.pt",
+  "dqn_medium": "experiments/uav_leo_v2x/drl_models/dqn/v2x_medium/model.pt",
+  "dqn_hard": "experiments\\uav_leo_v2x_paper_final\\models\\dqn_hard.pt",
+  "dqn_stress": "experiments/uav_leo_v2x/drl_models/dqn/v2x_stress/model.pt",
+  "ddqn_easy": "experiments/uav_leo_v2x/drl_models/ddqn/v2x_easy/model.pt",
+  "ddqn_medium": "experiments/uav_leo_v2x/drl_models/ddqn/v2x_medium/model.pt",
+  "ddqn_hard": "experiments/uav_leo_v2x/drl_models/ddqn/v2x_hard/model.pt",
+  "ddqn_stress": "experiments/uav_leo_v2x/drl_models/ddqn/v2x_stress/model.pt",
+  "td3_easy": "experiments/uav_leo_v2x/drl_models/td3/v2x_easy/model.pt",
+  "td3_medium": "experiments/uav_leo_v2x/drl_models/td3/v2x_medium/model.pt",
+  "td3_hard": "experiments\\uav_leo_v2x_paper_final\\models\\td3_hard.pt",
+  "td3_stress": "experiments\\uav_leo_v2x_paper_final\\models\\td3_stress.pt",
+  "ddpg_easy": "experiments/uav_leo_v2x/drl_models/ddpg/v2x_easy/model.pt",
+  "ddpg_medium": "experiments/uav_leo_v2x/drl_models/ddpg/v2x_medium/model.pt",
+  "ddpg_hard": "experiments/uav_leo_v2x/drl_models/ddpg/v2x_hard/model.pt",
+  "ddpg_stress": "experiments/uav_leo_v2x/drl_models/ddpg/v2x_stress/model.pt",
+  "sac_easy": "experiments/uav_leo_v2x/drl_models/sac/v2x_easy/model.pt",
+  "sac_medium": "experiments/uav_leo_v2x/drl_models/sac/v2x_medium/model.pt",
+  "sac_hard": "experiments\\uav_leo_v2x_paper_final\\models\\sac_hard.pt",
+  "sac_stress": "experiments\\uav_leo_v2x_paper_final\\models\\sac_stress.pt",
+  "gdrl_hard": "experiments\\uav_leo_v2x_paper_final\\models\\gdrl_hard.pt",
+  "gdrl_stress": "experiments\\uav_leo_v2x_paper_final\\models\\gdrl_stress.pt",
+  "methods": "gdrl,predict_tea,follow_tea,deadline_tea,tea_partial,energy_guarded_tea,full_offload_tea,greedy_partial,lyapunov,ppo,dqn,td3,sac,random",
+  "skip_slow": true
+}
