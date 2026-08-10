@@ -298,15 +298,18 @@ on stress (+2.3, p = 0.028).
 | method | hard reward | hard success | stress reward | stress success |
 |---|---|---|---|---|
 | **GDRL (ours)** | **-85.2** | **0.971** | **-132.6** | **0.956** |
-| Predict-TEA | -87.4 | 0.969 | -137.0 | 0.954 |
 | MPC-H3 (receding horizon) | -85.6 | 0.970 | -134.8 | 0.955 |
+| Predict-TEA | -87.4 | 0.969 | -137.0 | 0.954 |
 | Follow-TEA | -93.2 | 0.965 | -140.1 | 0.952 |
-| Deadline-TEA | -107.0 | 0.955 | -162.6 | 0.941 |
 | PPO (BC+KL) | -106.7 | 0.957 | -165.7 | 0.941 |
+| Deadline-TEA | -107.0 | 0.955 | -162.6 | 0.941 |
+| Transformer-PPO (2025) | -117.7 | 0.950 | -178.4 | 0.935 |
 | TEA / Lyapunov | -118.1 | 0.948 | -179.9 | 0.932 |
+| GAT-PPO (2024) | -120.0 | 0.949 | -184.2 | 0.932 |
+| P-D3QN (2024) | -294.5 | 0.852 | -357.7 | 0.860 |
 | DQN | -296.1 | 0.849 | - | - |
-| TD3 | -336.7 | 0.821 | -420.0 | 0.829 |
 | SAC | -304.1 | 0.840 | -414.5 | 0.828 |
+| TD3 | -336.7 | 0.821 | -420.0 | 0.829 |
 | Random | -339.2 | 0.826 | -436.2 | 0.831 |
 
 GDRL beats the best hand-crafted heuristic (Predict-TEA) by +2.2 on hard
@@ -314,9 +317,15 @@ GDRL beats the best hand-crafted heuristic (Predict-TEA) by +2.2 on hard
 matches/beats the receding-horizon MPC-H3 baseline (+0.4 hard, +2.3 stress;
 stress p = 0.028) while using the same exact offloading layer (the learned
 trajectory policy itself is a single network forward pass per slot), and beats
-the standard DRL baselines (PPO/DQN/TD3/SAC) by 20-300+, while also achieving
-the highest task success rate and the lowest (or tied-lowest) latency among
-the top methods.
+all pure-DRL baselines by a wide margin. This includes the recent-literature
+methods added for the paper: P-D3QN (2024, prioritized dueling double DQN),
+GAT-PPO (2024, graph-attention encoder) and Transformer-PPO (2025, self-
+attention encoder) lose by +32.5 to +225 (all p < 0.0001, 40/40 episode wins),
+even though GAT/Transformer-PPO use the same BC+KL training protocol as the
+PPO baseline. The results show that fancier DRL representations alone do not
+close the gap: the decisive component is the post-move exact offloading layer.
+GDRL also achieves the highest task success rate and the lowest (or
+tied-lowest) latency among the top methods.
 
 ### GDRL contribution ablation (same 40 seeded episodes)
 

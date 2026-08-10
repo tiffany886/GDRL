@@ -19,15 +19,18 @@ from scipy import stats
 
 METHOD_ORDER = ["gdrl", "predict_tea", "follow_tea", "deadline_tea", "tea_partial",
                 "energy_guarded_tea", "full_offload_tea", "greedy_partial", "lyapunov",
-                "rate_aware", "uav_only", "leo_only", "ppo", "dqn", "td3", "sac",
-                "random", "local_only"]
+                "rate_aware", "uav_only", "leo_only", "ppo", "dqn", "d3qn",
+                "gat_ppo", "transformer_ppo", "td3", "sac", "random", "local_only",
+                "mpc_traj_h3"]
 SHORT = {
     "gdrl": "GDRL", "predict_tea": "Predict-TEA", "follow_tea": "Follow-TEA",
     "deadline_tea": "Deadline-TEA", "tea_partial": "TEA", "energy_guarded_tea": "E-Guard TEA",
     "full_offload_tea": "Full-offload", "greedy_partial": "Greedy", "lyapunov": "Lyapunov",
     "rate_aware": "Rate-aware", "uav_only": "UAV-only", "leo_only": "LEO-only",
-    "ppo": "PPO", "dqn": "DQN", "td3": "TD3", "sac": "SAC", "random": "Random",
-    "local_only": "Local-only",
+    "ppo": "PPO", "dqn": "DQN", "d3qn": "P-D3QN", "gat_ppo": "GAT-PPO",
+    "transformer_ppo": "Transformer-PPO", "td3": "TD3", "sac": "SAC",
+    "random": "Random", "local_only": "Local-only",
+    "mpc_traj_h3": "MPC-H3",
 }
 
 

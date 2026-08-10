@@ -36,8 +36,17 @@
   "sac_medium": "experiments/uav_leo_v2x/drl_models/sac/v2x_medium/model.pt",
   "sac_hard": "experiments\\uav_leo_v2x_paper_final\\models\\sac_hard.pt",
   "sac_stress": "experiments\\uav_leo_v2x_paper_final\\models\\sac_stress.pt",
+  "d3qn_hard": "experiments\\uav_leo_v2x\\drl_models_v2\\d3qn\\v2x_hotspot_hard\\model.pt",
+  "d3qn_stress": "experiments\\uav_leo_v2x\\drl_models_v2\\d3qn\\v2x_hotspot_stress\\model.pt",
+  "gat_ppo_hard": "experiments\\uav_leo_v2x\\drl_models_v2\\gat_ppo\\v2x_hotspot_hard\\model.pt",
+  "gat_ppo_stress": "experiments\\uav_leo_v2x\\drl_models_v2\\gat_ppo\\v2x_hotspot_stress\\model.pt",
+  "transformer_ppo_hard": "experiments\\uav_leo_v2x\\drl_models_v2\\transformer_ppo\\v2x_hotspot_hard\\model.pt",
+  "transformer_ppo_stress": "experiments\\uav_leo_v2x\\drl_models_v2\\transformer_ppo\\v2x_hotspot_stress\\model.pt",
   "gdrl_hard": "experiments\\uav_leo_v2x_paper_final\\models\\gdrl_hard.pt",
   "gdrl_stress": "experiments\\uav_leo_v2x_paper_final\\models\\gdrl_stress.pt",
-  "methods": "gdrl,predict_tea,follow_tea,deadline_tea,tea_partial,energy_guarded_tea,full_offload_tea,greedy_partial,lyapunov,ppo,dqn,td3,sac,random",
-  "skip_slow": true
+  "energy_weight": null,
+  "methods": "gdrl,predict_tea,follow_tea,deadline_tea,tea_partial,energy_guarded_tea,full_offload_tea,greedy_partial,lyapunov,ppo,dqn,d3qn,gat_ppo,transformer_ppo,td3,sac,random,mpc_traj_h3",
+  "skip_slow": true,
+  "mpc_horizon": 3,
+  "mpc_offload": "exact"
 }
