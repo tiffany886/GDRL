@@ -110,3 +110,5 @@ experiments/uav_leo_v2x_paper_final/models/*
 /train_sota_*.log
 
 /eval_40ep_sota.log
+
+!experiments/uav_leo_v2x_paper_final/reviewer_assessment.md
