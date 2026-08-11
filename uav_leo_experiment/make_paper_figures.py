@@ -64,14 +64,18 @@ DIFF_SHORT = {"v2x_hotspot_hard": "Hard", "v2x_hotspot_stress": "Stress"}
 
 # Full comparison set used in bar charts (best first ordering is done later).
 METHOD_ORDER = [
-    "gdrl", "mpc_traj_h3", "predict_tea", "follow_tea", "deadline_tea", "ppo",
+    "postmove_exact", "pmeo_e", "gdrl", "mpc_traj_h3", "mpc_traj_h10", "mpc_traj_h30",
+    "predict_tea", "follow_tea", "deadline_tea", "ppo",
     "gat_ppo", "transformer_ppo", "d3qn", "tea_partial", "energy_guarded_tea",
     "full_offload_tea", "greedy_partial", "lyapunov", "dqn", "sac", "td3",
     "random",
 ]
 
 METHOD_LABELS = {
-    "gdrl": "GDRL (ours)", "mpc_traj_h3": "MPC-H3",
+    "postmove_exact": "PMEO (ours)", "pmeo_e": "PMEO-E (ours)",
+    "gdrl": "GDRL (residual PPO)",
+    "mpc_traj_h3": "MPC-H3", "mpc_traj_h10": "MPC-H10",
+    "mpc_traj_h30": "MPC-H30",
     "predict_tea": "Predict-TEA", "follow_tea": "Follow-TEA",
     "deadline_tea": "Deadline-TEA", "ppo": "PPO (BC+KL)",
     "gat_ppo": "GAT-PPO", "transformer_ppo": "Transformer-PPO",
@@ -85,7 +89,9 @@ METHOD_LABELS = {
 }
 
 COLORS = {
-    "gdrl": "#C62828", "mpc_traj_h3": "#1565C0", "predict_tea": "#2E7D32",
+    "postmove_exact": "#C62828", "pmeo_e": "#B71C1C", "gdrl": "#8E24AA",
+    "mpc_traj_h3": "#1565C0", "mpc_traj_h10": "#0D47A1", "mpc_traj_h30": "#002171",
+    "predict_tea": "#2E7D32",
     "follow_tea": "#6A1B9A", "deadline_tea": "#EF6C00", "ppo": "#455A64",
     "gat_ppo": "#6D4C41", "transformer_ppo": "#8D6E63", "d3qn": "#AD1457",
     "tea_partial": "#00838F", "energy_guarded_tea": "#795548",
@@ -93,16 +99,17 @@ COLORS = {
     "lyapunov": "#5D4037", "dqn": "#78909C", "sac": "#90A4AE",
     "td3": "#B0BEC5", "random": "#CFD8DC",
     "gdrl_no_traj": "#E57373", "gdrl_no_opt": "#EF9A9A",
+    "current_exact": "#F9A825",
 }
 
 # Methods shown on line/box/cdf charts (readability).
-TOP_METHODS = ["gdrl", "mpc_traj_h3", "predict_tea", "follow_tea", "deadline_tea",
-               "ppo", "tea_partial", "energy_guarded_tea"]
-TRAJ_METHODS = ["gdrl", "mpc_traj_h3", "predict_tea", "follow_tea"]
+TOP_METHODS = ["postmove_exact", "pmeo_e", "gdrl", "mpc_traj_h3", "mpc_traj_h10",
+               "predict_tea", "follow_tea", "deadline_tea", "ppo"]
+TRAJ_METHODS = ["postmove_exact", "pmeo_e", "gdrl", "mpc_traj_h3", "predict_tea", "follow_tea"]
 
-CONV_METHODS = [("gdrl", "GDRL (ours)"), ("ppo", "PPO (BC+KL)"),
+CONV_METHODS = [("gdrl", "GDRL (residual PPO)"), ("ppo", "PPO (BC+KL)"),
                 ("td3", "TD3"), ("sac", "SAC")]
-CONV_SUBDIR = {"gdrl": "gdrl/gdrl", "ppo": "ppo", "td3": "td3", "sac": "sac"}
+CONV_SUBDIR = {"gdrl": "gdrl", "ppo": "ppo", "td3": "td3", "sac": "sac"}
 
 
 def read_csv(path):

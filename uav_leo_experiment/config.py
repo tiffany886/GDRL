@@ -290,6 +290,8 @@ ABLATION_PRESETS = {
     "fixed_uav": {"fixed_uav": True},
     "no_flight_energy": {"no_flight_energy": True},
     "full_offload_only": {"full_offload_only": True},
+    "no_hotspot": {"hotspot_motion": False, "hotspot_arrival_prob": 0.0,
+                   "base_arrival_prob": 1.0, "hotspot_size_boost": 0.0},
 }
 
 

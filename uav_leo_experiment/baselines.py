@@ -475,6 +475,37 @@ class ExpertExactOffloadPolicy(BasePolicy):
         return {"move": move, "targets": targets, "ratios": ratios}
 
 
+class EnergyGatedExpertExactPolicy(ExpertExactOffloadPolicy):
+    """PMEO with an energy gate: the demand-predictive move is executed only
+    when the offloading gain of the post-move position exceeds the flight
+    energy cost of the move (scaled by ``energy_weight``).  This keeps the
+    trajectory energy-aware without any lookahead, matching the behaviour of
+    MPC when energy is priced."""
+
+    name = "pmeo_e"
+
+    def __init__(self):
+        super().__init__(offload_at="post_move")
+        self.name = "pmeo_e"
+
+    def act(self, obs, rng, config):
+        from .mpc_traj import _exact_cost_at, _post_move_pos
+        from .physics import flight_energy
+        from .traj_drl import _exact_offload, _predict_tea_move
+        move = _predict_tea_move(obs, config)
+        pos_new = _post_move_pos(obs, config, move)
+        if not config.no_flight_energy:
+            moved = float(np.linalg.norm(pos_new - np.asarray(obs["uav_pos"], dtype=float)))
+            flight = flight_energy(config, moved)
+            cur_pos = np.asarray(obs["uav_pos"], dtype=float)
+            gain = _exact_cost_at(obs, config, cur_pos) - _exact_cost_at(obs, config, pos_new)
+            if gain <= config.energy_weight * flight:
+                move = np.zeros(2, dtype=float)
+                pos_new = cur_pos
+        targets, ratios = _exact_offload(obs, config, pos_new)
+        return {"move": move, "targets": targets, "ratios": ratios}
+
+
 def default_policies():
     return [
         RandomPolicy(),
@@ -491,4 +522,5 @@ def default_policies():
         PredictTeaPolicy(),
         ExpertExactOffloadPolicy(offload_at="post_move"),
         ExpertExactOffloadPolicy(offload_at="current"),
+        EnergyGatedExpertExactPolicy(),
     ]

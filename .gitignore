@@ -112,3 +112,6 @@ experiments/uav_leo_v2x_paper_final/models/*
 /eval_40ep_sota.log
 
 !experiments/uav_leo_v2x_paper_final/reviewer_assessment.md
+
+!experiments/uav_leo_v2x_paper_final/routeA_analysis.md
+!experiments/uav_leo_v2x_paper_final/route_a_method.md

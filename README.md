@@ -75,3 +75,21 @@ The trained model will be saved in a new folder with the name model_save. It wil
 * The batch size is set to 100 in this code and can be customized by modifying arg_parser.py.
 * Please check your CUDA version before installing torch.
 * New pacekge may need to be installed for enabling the collaboartion between Matlab and Python. 
+
+## Route A — Paper reframing (PMEO)
+
+审稿后决定走 "Route A"：论文主体从"图强化学习 GDRL"重定位为
+**决策顺序敏感的轨迹-卸载联合优化**（免训练的 PMEO = demand-predictive 轨迹 +
+移动后精确卸载）。关键文件：
+
+- `experiments/uav_leo_v2x_paper_final/paper_results.md` — 主结果表（PMEO 为参照，
+  含 MPC-H3/H10/H30、GDRL、全部基线，40 集 × 2 场景）
+- `experiments/uav_leo_v2x_paper_final/routeA_analysis.md` — 敏感性（规模/时延/
+  热点速度/无热点/能量权重）+ 5 种子鲁棒性
+- `experiments/uav_leo_v2x_paper_final/route_a_method.md` — 方法、命题、投稿路线
+- `uav_leo_experiment/analyze_routeA.py` — 汇总敏感性/多种子表格
+- 新基线策略：`baselines.py` 的 `EnergyGatedExpertExactPolicy`（PMEO-E，诊断用）
+
+核心结论：PMEO 与训练的 GDRL 几乎一致（学习不必要）；post-move 卸载比 current-position
+显著更好（5 seed 池化 p<0.0001）；MPC 加长视界反而更差（H10/H30）；能量定价后节能
+轨迹需要 MPC 式前瞻（诚实边界）。

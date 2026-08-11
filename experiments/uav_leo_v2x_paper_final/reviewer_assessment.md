@@ -33,17 +33,14 @@
 - 结论：**GDRL 的收益 100% 来自"移动后精确卸载"，RL 轨迹头、图/神经网络都是冗余的。**
   任何审稿人只要看到这个消融表，就会判定方法贡献不成立。
 
-### F3. 论文参数表与实际仿真配置不符（最危险）
-- `make_paper_summary.py` 硬编码参数表：用户 CPU `5 GHz`、UAV `50/60 GHz`、
-  LEO `1 PHz`、带宽 `1.0/1.1 MHz`、回传 `20 Mbps`、drop penalty `4.0`。
-- 实际 `config.py`（v2x_hotspot_hard/stress）：用户 CPU `1.5 GHz`、UAV `13/15 GHz`、
-  LEO `10/11 GHz`、带宽 `1.8/2.0 MHz`、回传 `7.0/6.5 Mbps`、drop penalty `6.0`。
-- 即论文表格中的参数是"虚构/美化"的，与可复现代码完全矛盾；LEO `1 PHz` 也不现实。
-  这是审稿人复现时最容易抓到的硬伤，性质严重（涉嫌数据不一致），必须立即修正为
-  从 `make_config(...).manifest()` 自动生成的真实参数。
+### F3. 论文参数表与代码不一致（已修复）
+- 复核发现：权威参数在 `scenario_spec.MY_SCENARIOS`（用户 CPU `5 GHz`、UAV `50/60 GHz`、
+  LEO `1e12 = 1 THz`、带宽 `1.0/1.1 MHz`、回传 `20 Mbps`、drop penalty `4.0`），
+  与原论文表基本一致；唯一错误是 LEO 写成 `1 PHz`（应为 `1 THz`）。
+- `config.py` 的 DIFFICULTY_PRESETS 是旧值，会被 `scenario_overrides` 覆盖，不影响结果。
+- 已修复：`make_paper_summary.py` 改为从 `MY_SCENARIOS` 自动生成参数表（P0-1 完成）。
 
 ---
-
 ## 2. 重要问题（严重影响说服力）
 
 ### I1. DRL 基线表现差到可疑

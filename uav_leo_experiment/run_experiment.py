@@ -31,6 +31,8 @@ def parse_args():
     parser.add_argument("--task_bits_max", type=float, default=None)
     parser.add_argument("--deadline", type=float, default=None)
     parser.add_argument("--bandwidth_hz", type=float, default=None)
+    parser.add_argument("--hotspot_speed", type=float, default=None)
+    parser.add_argument("--hotspot_radius", type=float, default=None)
     parser.add_argument("--energy_weight", type=float, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--ppo_model", type=str, default=None, help="Path to trained PPO model.pt")
@@ -69,6 +71,8 @@ def build_config(args):
         "task_bits_max": args.task_bits_max,
         "success_deadline_s": args.deadline,
         "bandwidth_hz": args.bandwidth_hz,
+        "hotspot_speed": args.hotspot_speed,
+        "hotspot_radius": args.hotspot_radius,
         "energy_weight": args.energy_weight,
     }
     overrides = {key: value for key, value in cli.items() if value is not None}

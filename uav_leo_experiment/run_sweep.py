@@ -76,6 +76,8 @@ def parse_args():
     parser.add_argument("--skip_slow", action="store_true")
     parser.add_argument("--mpc_horizon", type=int, default=0,
                         help="Receding-horizon trajectory planner lookahead slots (0 = off)")
+    parser.add_argument("--mpc_horizons", type=str, default=None,
+                        help="Extra MPC lookahead horizons to run, comma separated (e.g. 3,10,30)")
     parser.add_argument("--mpc_offload", type=str, default="exact", choices=["exact", "tea"])
     return parser.parse_args()
 
@@ -236,6 +238,15 @@ def main():
                 mpc_offload=args.mpc_offload,
             )
             policies = build_policies(sweep_args)
+            if getattr(args, "mpc_horizons", None):
+                from .mpc_traj import MPCTrajPolicy
+                extra = [int(h) for h in args.mpc_horizons.split(",") if h.strip()]
+                existing = {pol.name for pol in policies}
+                for h in extra:
+                    name = f"mpc_traj_h{h}"
+                    if h > 0 and name not in existing:
+                        policies.append(MPCTrajPolicy(horizon=h, offload=args.mpc_offload))
+                        existing.add(name)
             run_dir = default_output_dir(config, root)
             summaries, episodes, steps = run_experiment(config, run_dir, policies)
             all_summary.extend(summaries)
