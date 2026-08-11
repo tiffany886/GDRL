@@ -115,3 +115,9 @@ experiments/uav_leo_v2x_paper_final/models/*
 
 !experiments/uav_leo_v2x_paper_final/routeA_analysis.md
 !experiments/uav_leo_v2x_paper_final/route_a_method.md
+!experiments/uav_leo_v2x_paper_final/route_a_method.md
+!experiments/uav_leo_v2x_paper_final/project_overview.md
+!experiments/uav_leo_v2x_paper_final/scale_sweep_summary.md
+!experiments/uav_leo_v2x_paper_final/scale_sweep/
+experiments/uav_leo_v2x_paper_final/scale_sweep/*
+!experiments/uav_leo_v2x_paper_final/scale_sweep/scale_summary_final.csv
