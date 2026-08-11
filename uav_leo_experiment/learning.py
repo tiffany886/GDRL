@@ -1490,7 +1490,12 @@ class DuelingDQN(nn.Module):
 
 
 class D3QNTrainer(DQNTrainer):
-    """P-D3QN (dueling + double Q + prioritized replay) offloading baseline."""
+    """P-D3QN (dueling + double Q + prioritized replay) offloading baseline.
+
+    Follows Chi et al. [1] and the ICV / UAV-aided MEC context of Li et
+    al. [2] (full citations: experiments/uav_leo_v2x_paper_final/
+    route_a_method.md, Section 6).
+    """
 
     name = "d3qn"
     net_class = DuelingDQN
@@ -1595,12 +1600,13 @@ class D3QNPolicy(DQNPolicy):
 # Graph-attention / Transformer PPO
 #
 # Implements the graph-encoding DRL baselines from recent V2X / MEC offloading
-# papers (2024-2025): a GAT encoder ("Cooperative Multiagent DRL for UAV-aided
-# MEC", IEEE IoT-J 2024; "Optimizing vehicular edge computing: graph-based
-# DQN", J. Supercomputing 2024) or a Transformer encoder ("Towards Task Number
-# Adaptive Offloading in MEC Systems: A Transformer-based DRL Approach",
-# VTC 2025-Spring) over the per-user observation block, followed by the same
-# PPO actor-critic heads as the standard PPO baseline.
+# papers (2024-2025): a GAT encoder following Kim et al. [3] (cooperative
+# multiagent DRL for UAV-aided MEC, IEEE IoT-J 2024) and Ullah & Han [4]
+# (graph-based double-DQN for vehicular edge computing, J. Supercomputing
+# 2024/2025), or a Transformer encoder following Xie et al. [5]
+# (Transformer-based DRL offloading, IEEE VTC 2025-Spring), applied over the
+# per-user observation block, followed by the same PPO actor-critic heads as
+# the standard PPO baseline.
 # ---------------------------------------------------------------------------
 def split_obs_tensor(config, obs):
     """Slice the flat obs into (global, user_block, valid, tea blocks).

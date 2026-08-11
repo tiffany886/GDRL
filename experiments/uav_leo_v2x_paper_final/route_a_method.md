@@ -16,6 +16,10 @@
 
 复杂度：每时隙 O(U × 15) 次链路/计算仿真，无训练、无前向规划。
 
+> 两阶段“轨迹规划 → 卸载决策”的分离思路参考了 [6][8]（UAV 轨迹优化与
+> 卸载/资源分配联合设计的最新工作）；本文的差异点是强调**决策顺序**：
+> 卸载必须在移动后的实际位置求解，而不是移动前。
+
 ## 2. 核心贡献（三个可写点）
 
 ### C1. 决策顺序（decision-order）发现（机制表 3b）
@@ -78,9 +82,51 @@
 - 目标期刊（中档）：Ad Hoc Networks、Computer Networks、Physical Communication、
   IEEE Access、Vehicular Communications、EURASIP JWCN。
 - P2（写作前必做）：
-  - [ ] 系统架构图 + 算法伪代码（PMEO 两步流程）；
+  - [x] 系统架构图 + 算法伪代码（PMEO 两步流程）——见下方 Figure 1/Figure 2；
   - [ ] 命题 1/2 的完整证明与数值验证（不同移动量/路径损耗下的收益曲线）；
   - [ ] 英文全文（Introduction 强调"卸载决策顺序被长期忽视"；Related Work 覆盖
         UAV-MEC / 车联网 / LEO 边缘计算 2023-2025 文献；Experiments 用现有表格）；
   - [ ] 能量 Discussion 段落（第 3 节内容）；
   - [ ] 复现：一键 `run_routeA_all.bat`（主表 + 敏感性 + 多种子）。
+
+![Figure 1: 系统架构图（UAV-LEO 边缘卸载场景，UAV 按专家轨迹移动，卸载可选 local/UAV/LEO）](figures/architecture.png)
+
+![Figure 2: PMEO 两步流程（需求预测轨迹 → 移动后精确卸载）](figures/pmeo_pipeline.png)
+
+## 6. 对比算法与参考文献映射
+
+| 本文中的算法 | 论文中的角色 | 参考/来源 |
+|---|---|---|
+| PMEO（Post-Move Exact Offloading） | 本文提出方法（免训练） | 自研；轨迹-卸载分离思路参考 [6][8] |
+| PMEO-E（能量门控变体） | 消融 / 负结果 | 自研（naive 单步能量门控） |
+| TEA 系列（Predict-TEA / Follow-TEA / Current-pos exact） | 对比 / 消融基线 | 自研启发式（专家轨迹 + 精确卸载） |
+| GDRL（residual PPO） | 本文训练版 / 主基线 | 源于 [7] 的图强化学习思想；轨迹部分参考 [6] |
+| PPO (BC+KL) | 强化学习基线 | 标准 PPO（Schulman et al., 2017），行为克隆 + KL 约束 |
+| GAT-PPO | 前沿基线 | GAT 编码参考 [3]（UAV-aided MEC 多智能体 DRL）；图结构卸载参考 [4] |
+| Transformer-PPO | 前沿基线 | [5]（Transformer-based DRL offloading, VTC 2025-Spring） |
+| P-D3QN | 前沿基线 | [1]（prioritized experience-based double dueling DQN）；ICV/UAV-MEC 辅助参考 [2] |
+| D3QN 组件（dueling / double Q / PER） | 实现细节 | 标准技术，组合方式见 [1][2] |
+| DQN / SAC / TD3 / DDQN | 标准基线 | 标准算法（Mnih et al.; Haarnoja et al.; Fujimoto et al.; van Hasselt et al.） |
+| Random | 下界基线 | 随机动作 |
+| MPC-H3 / H10 / H30 | 轨迹层对比 | [8]（MPC 轨迹规划 + 卸载优化）；不同视界消融为本实验扩展 |
+| 综述 / 背景 | Related Work | [9] |
+
+### References
+
+[1] J. Chi, X. Zhou, F. Xiao, Y. Lim, and T. Qiu, “Task Offloading via Prioritized Experience-Based Double Dueling DQN in Edge-Assisted IIoT,” *IEEE Transactions on Mobile Computing*, vol. 23, no. 12, pp. 14575-14591, Dec. 2024. DOI: 10.1109/TMC.2024.3452502.
+
+[2] C. Li, K. Jiang, Y. Zhang, L. Jiang, Y. Luo, and S. Wan, “Deep Reinforcement Learning-based Mining Task Offloading Scheme for Intelligent Connected Vehicles in UAV-aided MEC,” *ACM Transactions on Design Automation of Electronic Systems*, vol. 29, no. 3, 2024. DOI: 10.1145/3653451.
+
+[3] M. Kim, H. Lee, S. Hwang, M. Debbah, and I. Lee, “Cooperative Multiagent Deep Reinforcement Learning Methods for UAV-Aided Mobile Edge Computing Networks,” *IEEE Internet of Things Journal*, vol. 11, no. 23, pp. 38040-38053, Dec. 2024. DOI: 10.1109/JIOT.2024.3447090.
+
+[4] I. Ullah and Y.-H. Han, “Optimizing vehicular edge computing: graph-based double-DQN approaches for intelligent task offloading,” *The Journal of Supercomputing*, vol. 81, no. 1, 2025. DOI: 10.1007/s11227-024-06599-4.
+
+[5] Y. Xie, F. Zhang, Y. Fu, C. Xu, and T. Q. S. Quek, “Towards Task Number Adaptive Offloading in MEC Systems: A Transformer-based DRL Approach,” in *Proc. IEEE VTC 2025-Spring*, Oslo, Norway, 2025. DOI: 10.1109/VTC2025-Spring65109.2025.11174688.
+
+[6] X. Wu, L. Liang, W. Wen, Z. Huang, X. Liu, and Y. Jia, “DRL-Based Trajectory Optimization and Computation-Aware Resource Allocation for UAV-Assisted Edge Computing Networks,” *IEEE Internet of Things Journal*, vol. 12, no. 20, pp. 43540-43558, Oct. 2025. DOI: 10.1109/JIOT.2025.3597502.
+
+[7] Y. Cai, P. Cheng, Z. Chen, W. Xiang, B. Vucetic, and Y. Li, “Graphic Deep Reinforcement Learning for Dynamic Resource Allocation in Space-Air-Ground Integrated Networks,” *IEEE Journal on Selected Areas in Communications*, vol. 43, no. 1, pp. 334-349, Jan. 2025.
+
+[8] Y. Zhang, Z. Kuang, Y. Feng, and F. Hou, “Task Offloading and Trajectory Optimization for Secure Communications in Dynamic User Multi-UAV MEC Systems,” *IEEE Transactions on Mobile Computing*, vol. 23, no. 12, pp. 14427-14440, 2024. DOI: 10.1109/TMC.2024.3442909.
+
+[9] T. Baidya, A. Nabi, and S. Moh, “Trajectory-Aware Offloading Decision in UAV-Aided Edge Computing: A Comprehensive Survey,” *Sensors*, vol. 24, no. 6, art. 1837, 2024. DOI: 10.3390/s24061837.

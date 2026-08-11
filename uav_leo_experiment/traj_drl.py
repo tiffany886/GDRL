@@ -12,10 +12,12 @@ where ``expert_move`` is the demand-predictive centroid/hotspot tracker
 cloning is trivial; PPO then learns where the myopic expert trajectory is
 suboptimal (hotspot anticipation, battery budgeting, queue backpressure).
 
-Reference direction (see README):
-  "DRL-based trajectory optimization and computation-aware resource allocation
-   for UAV-assisted edge computing networks", IEEE 2025 -- DRL for trajectory +
-   optimization for allocation.
+Reference direction [6]:
+  X. Wu, L. Liang, W. Wen, Z. Huang, X. Liu, and Y. Jia, "DRL-Based Trajectory
+  Optimization and Computation-Aware Resource Allocation for UAV-Assisted Edge
+  Computing Networks," IEEE Internet of Things Journal, vol. 12, no. 20,
+  pp. 43540-43558, Oct. 2025. DOI: 10.1109/JIOT.2025.3597502.
+  -- DRL for trajectory + computation-aware optimization for allocation.
 """
 import csv
 from pathlib import Path

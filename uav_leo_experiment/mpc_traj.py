@@ -22,6 +22,13 @@ planner:
 (``offload="exact"``) or with the queue-balanced TEA heuristic
 (``offload="tea"``), so the trajectory value can be isolated from the
 offloading value.
+
+Reference [8]:
+  Y. Zhang, Z. Kuang, Y. Feng, and F. Hou, "Task Offloading and Trajectory
+  Optimization for Secure Communications in Dynamic User Multi-UAV MEC
+  Systems," IEEE Transactions on Mobile Computing, vol. 23, no. 12,
+  pp. 14427-14440, 2024. DOI: 10.1109/TMC.2024.3442909.
+  -- receding-horizon / MPC trajectory planning separated from offloading.
 """
 import numpy as np
 
