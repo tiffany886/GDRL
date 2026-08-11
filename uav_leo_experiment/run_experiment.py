@@ -12,7 +12,6 @@ from .algorithms import (AntColonyPolicy, ExhaustiveOptimalPolicy, GeneticPolicy
 from .baselines import default_policies
 from .config import ABLATION_PRESETS, DIFFICULTY_PRESETS, make_config
 from .env import UavLeoEnv
-from .scenario_spec import scenario_overrides
 from .learning import (D3QNPolicy, DDPGPolicy, DDQNPolicy, DQNPolicy, GraphPPOPolicy,
                            PPOPolicy, SACPolicy, TD3Policy)
 from .traj_drl import GDRLPolicy
@@ -76,7 +75,6 @@ def build_config(args):
         "energy_weight": args.energy_weight,
     }
     overrides = {key: value for key, value in cli.items() if value is not None}
-    overrides = {**scenario_overrides(args.difficulty), **overrides}
     return make_config(args.difficulty, args.ablation, **overrides)
 
 

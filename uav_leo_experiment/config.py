@@ -1,6 +1,9 @@
 ﻿from dataclasses import dataclass, replace
 
 
+from .scenario_spec import scenario_overrides
+
+
 @dataclass
 class UavLeoConfig:
     seed: int = 73
@@ -302,6 +305,10 @@ def make_config(difficulty="easy", ablation="none", **overrides):
         raise ValueError(f"Unknown ablation: {ablation}")
     cfg = UavLeoConfig(difficulty=difficulty, ablation=ablation)
     cfg = replace(cfg, **DIFFICULTY_PRESETS[difficulty])
+    # Authoritative scenario spec wins over DIFFICULTY_PRESETS but must be
+    # applied *before* ablation presets so ablations (e.g. no_hotspot) are not
+    # clobbered by scenario defaults re-applied later in the kwargs.
+    cfg = replace(cfg, **scenario_overrides(difficulty))
     cfg = replace(cfg, **ABLATION_PRESETS[ablation])
     clean_overrides = {key: value for key, value in overrides.items() if value is not None}
     if clean_overrides:

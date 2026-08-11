@@ -55,6 +55,13 @@
 | hotspot speed = 24 m/s | MPC-H3 | -81.0 | 0.971 | 0.0969 | 124.3 |
 | hotspot speed = 24 m/s | Random | -303.1 | 0.844 | 0.2072 | 146.6 |
 
+| uniform arrivals (no hotspot) | PMEO (ours) | -91.2 | 1.000 | 0.2392 | 148.0 |
+| uniform arrivals (no hotspot) | PMEO-E (energy-gated) | -93.0 | 1.000 | 0.2489 | 88.2 |
+| uniform arrivals (no hotspot) | Current-pos exact | -91.8 | 0.999 | 0.2402 | 148.0 |
+| uniform arrivals (no hotspot) | Predict-TEA | -91.8 | 0.999 | 0.2402 | 148.0 |
+| uniform arrivals (no hotspot) | Follow-TEA | -91.8 | 0.999 | 0.2402 | 148.0 |
+| uniform arrivals (no hotspot) | MPC-H3 | -89.9 | 1.000 | 0.2399 | 102.0 |
+| uniform arrivals (no hotspot) | Random | -364.0 | 0.853 | 0.4091 | 148.7 |
 
 | energy weight = 0.01 | PMEO (ours) | -125.2 | 0.971 | 0.1072 | 148.2 |
 | energy weight = 0.01 | PMEO-E (energy-gated) | -153.8 | 0.941 | 0.1163 | 92.1 |

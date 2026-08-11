@@ -45,7 +45,8 @@ for name, label in variants:
         base = {r["method"]: r for r in read(ROOT / "sweep_summary.csv")
                 if r["difficulty"] == "v2x_hotspot_hard"}
     else:
-        sub = next((ROOT / "sensitivity" / name).glob("*/none/*"), None)
+        sub = next((ROOT / "sensitivity" / name).glob("*/none/*"), None) or \
+            next((ROOT / "sensitivity" / name).glob("*/no_hotspot/*"), None)
         base = {r["method"]: r for r in read(sub / "uav_leo_summary.csv")} if sub else {}
     for m in ("postmove_exact", "pmeo_e", "current_exact", "predict_tea", "follow_tea", "mpc_traj_h3", "random"):
         if m not in base:

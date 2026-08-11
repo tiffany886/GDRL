@@ -6,7 +6,6 @@ from pathlib import Path
 
 from .config import ABLATION_PRESETS, DIFFICULTY_PRESETS, make_config
 from .run_experiment import build_policies, default_output_dir, run_experiment
-from .scenario_spec import scenario_overrides
 
 # User count used by each difficulty when --users is not given. The v2x line
 # scales the user population with difficulty so the DRL models (trained at the
@@ -168,9 +167,6 @@ def main():
     for difficulty in args.difficulties:
         for ablation in args.ablations:
             users = args.users if args.users is not None else users_for(difficulty)
-            scenario = scenario_overrides(difficulty)
-            if args.energy_weight is not None:
-                scenario = {k: v for k, v in scenario.items() if k != "energy_weight"}
             ew_kwargs = {} if args.energy_weight is None else {"energy_weight": args.energy_weight}
             config = make_config(
                 difficulty,
@@ -181,7 +177,6 @@ def main():
                 episodes=args.episodes,
                 horizon=args.horizon,
                 **ew_kwargs,
-                **scenario,
             )
             # pick the DRL model appropriate for the difficulty (if present)
             ppo_model = ppo_paths.get(difficulty)
