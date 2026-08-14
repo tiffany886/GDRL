@@ -189,6 +189,115 @@ def simulate_task(
         "target": target_name,
     }
 
+def simulate_task_multi(
+    config,
+    user_pos,
+    uav_pos_array,
+    leo_pos,
+    task_bits,
+    cycles_per_bit,
+    target,
+    ratio,
+    uav_backlog_array,
+    leo_backlog,
+    user_idx=0,
+):
+    """Multi-UAV version of :func:`simulate_task`.
+
+    ``target`` codes: 0 = local, 1..K = UAV k, K+1 = LEO. The LEO route uses the
+    UAV relay with the best user->UAV->LEO combined rate. Returns the same dict
+    keys as :func:`simulate_task`, but ``added_uav`` is a length-K array so the
+    environment can credit the right UAV queue."""
+    dt = config.slot_seconds
+    bits = float(task_bits)
+    cycles = bits * float(cycles_per_bit)
+    ratio = float(np.clip(ratio, 0.0, 1.0))
+    deadline = float(config.success_deadline_s)
+    K = len(uav_pos_array)
+    uav_pos_array = np.asarray(uav_pos_array, dtype=float)
+    local_latency = (1.0 - ratio) * cycles / config.user_cpu_cycles_per_s
+    if config.power_based_energy:
+        local_energy = config.user_device_power_watt * local_latency
+    else:
+        local_energy = (
+            config.compute_energy_coeff
+            * ((1.0 - ratio) * cycles)
+            * (config.user_cpu_cycles_per_s ** 2)
+        )
+    if target == 0 or ratio <= 1.0e-6:
+        latency = cycles / config.user_cpu_cycles_per_s
+        if config.power_based_energy:
+            energy = config.user_device_power_watt * latency
+        else:
+            energy = config.compute_energy_coeff * cycles * (config.user_cpu_cycles_per_s ** 2)
+        return {
+            "latency": latency,
+            "energy": energy,
+            "server_energy": 0.0,
+            "added_uav": np.zeros(K, dtype=float),
+            "added_leo": 0.0,
+            "dropped": latency > deadline,
+            "target": "local",
+        }
+    if 1 <= target <= K:
+        k = int(target) - 1
+        rate = rate_user_uav(config, user_pos, uav_pos_array[k])
+        server_cpu = config.uav_cpu_cycles_per_s
+        backlog = float(uav_backlog_array[k])
+        added_uav = np.zeros(K, dtype=float)
+        added_uav[k] = ratio * cycles
+        target_name = "uav%d" % k
+    else:
+        relays = np.array([
+            min(rate_user_uav(config, user_pos, uav_pos_array[k]),
+                rate_uav_leo(config, uav_pos_array[k], leo_pos))
+            for k in range(K)
+        ])
+        k = int(np.argmax(relays))
+        rate = float(relays[k])
+        server_cpu = config.leo_cpu_cycles_per_s
+        backlog = float(leo_backlog)
+        added_uav = np.zeros(K, dtype=float)
+        added_leo = ratio * cycles
+        target_name = "leo"
+    tx_latency = ratio * bits / max(rate, 1.0)
+    wait_latency = max(backlog - server_cpu * dt, 0.0) / server_cpu
+    service_latency = ratio * cycles / server_cpu
+    latency = max(local_latency, tx_latency + wait_latency + service_latency)
+    dropped = latency > deadline
+    tx_energy = config.user_tx_power_watt * tx_latency
+    if config.power_based_energy:
+        server_power = config.leo_power_watt if target == K + 1 else config.uav_power_watt
+        server_energy = server_power * (ratio * cycles / server_cpu)
+        remote_energy = 0.0
+    else:
+        server_energy = config.compute_energy_coeff * (ratio * cycles) * (server_cpu ** 2)
+        remote_energy = server_energy
+    if dropped:
+        latency = float(deadline)
+        energy = local_energy
+        return {
+            "latency": latency,
+            "energy": energy,
+            "server_energy": 0.0,
+            "added_uav": np.zeros(K, dtype=float),
+            "added_leo": 0.0,
+            "dropped": True,
+            "target": target_name,
+        }
+    if config.power_based_energy:
+        energy = local_energy + tx_energy
+    else:
+        energy = local_energy + tx_energy + remote_energy
+    return {
+        "latency": latency,
+        "energy": energy,
+        "server_energy": server_energy,
+        "added_uav": added_uav,
+        "added_leo": added_leo if target == K + 1 else 0.0,
+        "dropped": False,
+        "target": target_name,
+    }
 def flight_energy(config, moved):
     """Propulsion energy for one slot: hover + speed-dependent terms."""
     speed = moved / max(config.slot_seconds, 1.0e-9)

@@ -8,6 +8,7 @@ from .scenario_spec import scenario_overrides
 class UavLeoConfig:
     seed: int = 73
     users: int = 5
+    uavs: int = 1
     leos: int = 4
     horizon: int = 100
     episodes: int = 20
@@ -59,6 +60,7 @@ class UavLeoConfig:
     uav_power_watt: float = 100.0
     leo_power_watt: float = 1000.0
     hotspot_motion: bool = False
+    hotspots: int = 1
     hotspot_speed: float = 18.0
     hotspot_radius: float = 220.0
     hotspot_arrival_prob: float = 0.95

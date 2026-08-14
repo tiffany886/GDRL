@@ -36,9 +36,11 @@ class UavLeoEnv:
             self.rng = np.random.default_rng(seed)
         c = self.config
         self.t = 0
-        self.uav_backlog = 0.0
         self.leo_backlog = 0.0
-        self.uav_battery = c.uav_battery_per_slot * c.horizon
+        K = int(getattr(c, 'uavs', 1))
+        M = int(getattr(c, 'hotspots', 1))
+        self.uav_backlog = np.zeros(K, dtype=float)
+        self.uav_battery = np.full(K, c.uav_battery_per_slot * c.horizon, dtype=float)
         if c.road_network:
             angles = self.rng.uniform(0.0, np.pi, size=c.n_roads)
             self.road_dirs = np.stack([np.cos(angles), np.sin(angles)], axis=1)
@@ -59,16 +61,24 @@ class UavLeoEnv:
                 self.user_vel = np.concatenate([speed * np.cos(angle), speed * np.sin(angle)], axis=1)
             else:
                 self.user_vel = np.zeros((c.users, 2))
-        self.uav_pos = np.array([0.5 * c.area_size, 0.5 * c.area_size], dtype=float)
+        if K == 1:
+            self.uav_pos = np.array([[0.5 * c.area_size, 0.5 * c.area_size]], dtype=float)
+        elif c.road_network:
+            fracs = np.linspace(-0.6, 0.6, K)
+            roads = self.rng.integers(0, c.n_roads, size=K)
+            self.uav_pos = center + (fracs[:, None] * c.road_half_len) * self.road_dirs[roads]
+        else:
+            xs = np.linspace(0.2 * c.area_size, 0.8 * c.area_size, K)
+            self.uav_pos = np.stack([xs, np.full(K, 0.5 * c.area_size)], axis=1)
         xs = np.linspace(0.15 * c.area_size, 0.85 * c.area_size, c.leos)
         ys = np.full(c.leos, 0.5 * c.area_size)
         self.leo_pos = np.stack([xs, ys], axis=1)
         if c.hotspot_motion:
-            self.hotspot_road = 0
-            self.hotspot_along = float(self.rng.uniform(-0.5 * c.road_half_len, 0.5 * c.road_half_len))
-            direction = c.hotspot_speed if self.rng.uniform() < 0.5 else -c.hotspot_speed
-            self.hotspot_vel = self.road_dirs[self.hotspot_road] * direction
-            self.hotspot_pos = center + self.hotspot_along * self.road_dirs[self.hotspot_road]
+            self.hotspot_road = np.zeros(M, dtype=int) if M == 1 else self.rng.integers(0, c.n_roads, size=M)
+            self.hotspot_along = self.rng.uniform(-0.5 * c.road_half_len, 0.5 * c.road_half_len, size=M)
+            directions = np.where(self.rng.uniform(size=M) < 0.5, c.hotspot_speed, -c.hotspot_speed)
+            self.hotspot_vel = self.road_dirs[self.hotspot_road] * directions[:, None]
+            self.hotspot_pos = center + self.hotspot_along[:, None] * self.road_dirs[self.hotspot_road]
         else:
             self.hotspot_pos = None
             self.hotspot_vel = None
@@ -79,8 +89,8 @@ class UavLeoEnv:
         self.task_bits = self.rng.uniform(c.task_bits_min, c.task_bits_max, size=c.users)
         self.cycles_per_bit = self.rng.uniform(c.cycles_per_bit_min, c.cycles_per_bit_max, size=c.users)
         if c.hotspot_motion and self.hotspot_pos is not None:
-            d2 = np.sum((self.user_pos - self.hotspot_pos) ** 2, axis=1)
-            proximity = np.exp(-d2 / (2.0 * c.hotspot_radius ** 2))
+            d2 = np.sum((self.user_pos[:, None, :] - self.hotspot_pos[None, :, :]) ** 2, axis=-1)
+            proximity = np.max(np.exp(-d2 / (2.0 * c.hotspot_radius ** 2)), axis=1)
             p_arr = c.base_arrival_prob + (c.hotspot_arrival_prob - c.base_arrival_prob) * proximity
             arrival = self.rng.uniform(size=c.users) < p_arr
             size_boost = 1.0 + c.hotspot_size_boost * proximity
@@ -122,73 +132,89 @@ class UavLeoEnv:
         if not c.hotspot_motion or self.hotspot_pos is None:
             return
         self.hotspot_along = self.hotspot_along + c.hotspot_speed * c.slot_seconds
-        if self.hotspot_along > c.road_half_len:
-            self.hotspot_along = 2.0 * c.road_half_len - self.hotspot_along
-            self.hotspot_vel = -self.hotspot_vel
-        elif self.hotspot_along < -c.road_half_len:
-            self.hotspot_along = 2.0 * (-c.road_half_len) - self.hotspot_along
-            self.hotspot_vel = -self.hotspot_vel
+        high = self.hotspot_along > c.road_half_len
+        low = self.hotspot_along < -c.road_half_len
+        self.hotspot_along = np.where(high, 2.0 * c.road_half_len - self.hotspot_along, self.hotspot_along)
+        self.hotspot_along = np.where(low, 2.0 * (-c.road_half_len) - self.hotspot_along, self.hotspot_along)
+        flip = high | low
+        self.hotspot_vel[flip] = -self.hotspot_vel[flip]
         center = np.array([0.5 * c.area_size, 0.5 * c.area_size])
-        self.hotspot_pos = center + self.hotspot_along * self.road_dirs[self.hotspot_road]
+        self.hotspot_pos = center + self.hotspot_along[:, None] * self.road_dirs[self.hotspot_road]
 
     def observation(self):
         c = self.config
-        uav_backlog_norm = self.uav_backlog / max(c.uav_cpu_cycles_per_s * c.slot_seconds, 1.0)
+        K = int(getattr(c, 'uavs', 1))
+        M = int(getattr(c, 'hotspots', 1))
+        if K == 1:
+            uav_backlog_norm = float(self.uav_backlog[0]) / max(c.uav_cpu_cycles_per_s * c.slot_seconds, 1.0)
+            uav_battery_norm = float(self.uav_battery[0] / max(c.uav_battery_per_slot * c.horizon, 1.0))
+        else:
+            uav_backlog_norm = self.uav_backlog / max(c.uav_cpu_cycles_per_s * c.slot_seconds, 1.0)
+            uav_battery_norm = self.uav_battery / max(c.uav_battery_per_slot * c.horizon, 1.0)
         leo_backlog_norm = self.leo_backlog / max(c.leo_cpu_cycles_per_s * c.slot_seconds, 1.0)
+        uav_pos = self.uav_pos[0] if K == 1 else self.uav_pos
+        uav_backlog = float(self.uav_backlog[0]) if K == 1 else self.uav_backlog
+        uav_battery = float(self.uav_battery[0]) if K == 1 else self.uav_battery
         return {
-            "t": self.t,
-            "user_pos": self.user_pos.copy(),
-            "user_vel": self.user_vel.copy(),
-            "uav_pos": self.uav_pos.copy(),
-            "leo_pos": self.leo_pos.copy(),
-            "task_bits": self.task_bits.copy(),
-            "cycles_per_bit": self.cycles_per_bit.copy(),
-            "uav_backlog": float(self.uav_backlog),
-            "leo_backlog": float(self.leo_backlog),
-            "uav_battery": float(self.uav_battery),
-            "uav_backlog_norm": float(uav_backlog_norm),
-            "leo_backlog_norm": float(leo_backlog_norm),
-            "uav_battery_norm": float(self.uav_battery / max(c.uav_battery_per_slot * c.horizon, 1.0)),
-            "hotspot_pos": None if self.hotspot_pos is None else self.hotspot_pos.copy(),
-            "hotspot_vel": None if self.hotspot_vel is None else self.hotspot_vel.copy(),
+            't': self.t,
+            'user_pos': self.user_pos.copy(),
+            'user_vel': self.user_vel.copy(),
+            'uav_pos': uav_pos.copy(),
+            'leo_pos': self.leo_pos.copy(),
+            'task_bits': self.task_bits.copy(),
+            'cycles_per_bit': self.cycles_per_bit.copy(),
+            'uav_backlog': uav_backlog,
+            'leo_backlog': float(self.leo_backlog),
+            'uav_battery': uav_battery,
+            'uav_backlog_norm': uav_backlog_norm,
+            'leo_backlog_norm': leo_backlog_norm,
+            'uav_battery_norm': uav_battery_norm,
+            'hotspot_pos': None if self.hotspot_pos is None else (self.hotspot_pos[0] if M == 1 else self.hotspot_pos.copy()),
+            'hotspot_vel': None if self.hotspot_vel is None else (self.hotspot_vel[0] if M == 1 else self.hotspot_vel.copy()),
         }
     def step(self, action):
         c = self.config
-        move = np.asarray(action.get("move", np.zeros(2)), dtype=float)
+        K = int(getattr(c, 'uavs', 1))
+        move = np.asarray(action.get('move', np.zeros(2)), dtype=float)
+        if move.ndim == 1:
+            move = np.tile(move, (K, 1))
         if c.fixed_uav:
-            move = np.zeros(2, dtype=float)
-        if c.uav_battery_per_slot > 0.0 and self.uav_battery <= 0.0:
-            move = np.zeros(2, dtype=float)
-        norm = float(np.linalg.norm(move))
-        if norm > c.uav_speed_max:
-            move = move / max(norm, 1.0e-9) * c.uav_speed_max
-            norm = c.uav_speed_max
+            move = np.zeros((K, 2), dtype=float)
+        if c.uav_battery_per_slot > 0.0:
+            battery_ok = self.uav_battery > 0.0
+            move = np.where(battery_ok[:, None], move, 0.0)
+        norms = np.linalg.norm(move, axis=1)
+        over = norms > c.uav_speed_max
+        if over.any():
+            move[over] = move[over] / np.maximum(norms[over], 1.0e-9)[:, None] * c.uav_speed_max
         old_uav = self.uav_pos.copy()
         self.uav_pos = np.clip(self.uav_pos + move * c.slot_seconds, 0.0, c.area_size)
-        moved = float(np.linalg.norm(self.uav_pos - old_uav))
-        targets = np.asarray(action.get("targets", np.ones(c.users)), dtype=int)
-        ratios = np.asarray(action.get("ratios", np.ones(c.users)), dtype=float)
+        moved = np.linalg.norm(self.uav_pos - old_uav, axis=1)
+        targets = np.asarray(action.get('targets', np.ones(c.users)), dtype=int)
+        ratios = np.asarray(action.get('ratios', np.ones(c.users)), dtype=float)
         ratios = np.clip(ratios, 0.0, 1.0)
         if c.full_offload_only:
             ratios = (ratios > 1.0e-6).astype(float)
         if c.no_flight_energy:
+            flight_per = np.zeros(K, dtype=float)
             flight = 0.0
         else:
-            flight = flight_energy(c, moved)
+            flight_per = np.array([flight_energy(c, float(mv)) for mv in moved], dtype=float)
+            flight = float(flight_per.sum())
         if c.uav_battery_per_slot > 0.0:
-            self.uav_battery = max(self.uav_battery - flight, 0.0)
-            if self.uav_battery <= 0.0:
-                flight = 0.0
+            self.uav_battery = np.maximum(self.uav_battery - flight_per, 0.0)
+            flight = float(flight_per[self.uav_battery > 0.0].sum())
         leo_idx = np.array([nearest_leo_index(self.leo_pos, self.user_pos[u]) for u in range(c.users)])
         leo_for_user = self.leo_pos[leo_idx]
         bits = np.asarray(self.task_bits, dtype=float)
         cpb = np.asarray(self.cycles_per_bit, dtype=float)
         cycles = bits * cpb
         ratio = np.clip(np.asarray(ratios, dtype=float), 0.0, 1.0)
-        target = np.clip(np.asarray(targets, dtype=int), 0, 2)
+        target = np.clip(np.asarray(targets, dtype=int), 0, K + 1)
         is_local = (target == 0) | (ratio <= 1.0e-6)
-        is_uav = ~is_local & (target == 1)
-        is_leo = ~is_local & (target == 2)
+        is_uav = ~is_local & (target >= 1) & (target <= K)
+        is_leo = ~is_local & (target == K + 1)
+        uav_k = np.clip(target - 1, 0, K - 1)
         local_latency = (1.0 - ratio) * cycles / c.user_cpu_cycles_per_s
         if c.power_based_energy:
             local_energy = c.user_device_power_watt * local_latency
@@ -199,13 +225,18 @@ class UavLeoEnv:
             full_local_energy = c.user_device_power_watt * full_local_latency
         else:
             full_local_energy = c.compute_energy_coeff * cycles * (c.user_cpu_cycles_per_s ** 2)
-        rate_uu = rate_user_uav_vec(c, self.user_pos, self.uav_pos)
-        rate_ul = np.minimum(rate_uu, rate_uav_leo_vec(c, self.uav_pos, leo_for_user))
-        tx_latency = np.where(is_uav, ratio * bits / np.maximum(rate_uu, 1.0), 0.0)
-        tx_latency += np.where(is_leo, ratio * bits / np.maximum(rate_ul, 1.0), 0.0)
+        rate_uu = rate_user_uav_vec(c, self.user_pos[:, None, :], self.uav_pos[None, :, :])  # (U,K)
+        relay_rate = rate_uav_leo_vec(c, self.uav_pos[None, :, :], leo_for_user[:, None, :])  # (U,K)
+        rate_ul = np.minimum(rate_uu, relay_rate)
+        best_relay = rate_ul.max(axis=1)                                               # (U,)
+        uav_rate = np.where(is_uav, rate_uu[np.arange(c.users), uav_k], 0.0)
+        tx_latency = np.zeros(c.users)
+        tx_latency += np.where(is_uav, ratio * bits / np.maximum(uav_rate, 1.0), 0.0)
+        tx_latency += np.where(is_leo, ratio * bits / np.maximum(best_relay, 1.0), 0.0)
+        uav_backlog_sel = np.where(is_uav, self.uav_backlog[uav_k], 0.0)
         wait_latency = np.where(
             is_uav,
-            np.maximum(self.uav_backlog - c.uav_cpu_cycles_per_s * c.slot_seconds, 0.0) / c.uav_cpu_cycles_per_s,
+            np.maximum(uav_backlog_sel - c.uav_cpu_cycles_per_s * c.slot_seconds, 0.0) / c.uav_cpu_cycles_per_s,
             0.0,
         )
         wait_latency += np.where(
@@ -215,7 +246,8 @@ class UavLeoEnv:
         )
         service_latency = np.where(is_uav, ratio * cycles / c.uav_cpu_cycles_per_s, 0.0)
         service_latency += np.where(is_leo, ratio * cycles / c.leo_cpu_cycles_per_s, 0.0)
-        latency = np.where(is_local, full_local_latency, np.maximum(local_latency, tx_latency + wait_latency + service_latency))
+        latency = np.where(is_local, full_local_latency,
+                           np.maximum(local_latency, tx_latency + wait_latency + service_latency))
         dropped_mask = latency > c.success_deadline_s
         remote_cycles = ratio * cycles
         tx_energy = c.user_tx_power_watt * tx_latency
@@ -228,11 +260,14 @@ class UavLeoEnv:
             uav_energy = c.compute_energy_coeff * remote_cycles * (c.uav_cpu_cycles_per_s ** 2)
             leo_energy = c.compute_energy_coeff * remote_cycles * (c.leo_cpu_cycles_per_s ** 2)
             server_energy = np.where(is_uav, uav_energy, 0.0) + np.where(is_leo, leo_energy, 0.0)
-            energy = np.where(is_local, full_local_energy, local_energy + tx_energy + np.where(is_uav, uav_energy, leo_energy))
+            energy = np.where(is_local, full_local_energy,
+                              local_energy + tx_energy + np.where(is_uav, uav_energy, leo_energy))
         server_energy = np.where(dropped_mask, 0.0, server_energy)
         energy = np.where(dropped_mask, np.where(is_local, full_local_energy, local_energy), energy)
         latency = np.where(dropped_mask & ~is_local, c.success_deadline_s, latency)
-        added_uav_cycles = np.where(is_uav & ~dropped_mask, ratio * cycles, 0.0)
+        added_uav_cycles = np.zeros((c.users, K), dtype=float)
+        offloaded = is_uav & ~dropped_mask
+        added_uav_cycles[offloaded, uav_k[offloaded]] += (ratio * cycles)[offloaded]
         added_leo_cycles = np.where(is_leo & ~dropped_mask, ratio * cycles, 0.0)
         total_latency = float(latency.sum())
         task_energy = float(energy.sum())
@@ -241,10 +276,10 @@ class UavLeoEnv:
         successes = c.users - dropped
         added_uav = float(added_uav_cycles.sum())
         added_leo = float(added_leo_cycles.sum())
-        target_names = np.where(is_local, "local", np.where(is_uav, "uav", "leo")).tolist()
+        target_names = np.where(is_local, 'local', np.where(is_uav, 'uav', 'leo')).tolist()
         per_user_latency = latency.tolist()
         # drain server queues by the CPU processed this slot, then add new work
-        self.uav_backlog = max(self.uav_backlog - c.uav_cpu_cycles_per_s * c.slot_seconds, 0.0) + added_uav
+        self.uav_backlog = np.maximum(self.uav_backlog - c.uav_cpu_cycles_per_s * c.slot_seconds, 0.0) + added_uav_cycles.sum(axis=0)
         self.leo_backlog = max(self.leo_backlog - c.leo_cpu_cycles_per_s * c.slot_seconds, 0.0) + added_leo
         total_energy = task_energy + flight
         reward = (
@@ -259,23 +294,24 @@ class UavLeoEnv:
         if not done:
             self._sample_tasks()
         info = {
-            "latency": total_latency,
-            "latency_mean": total_latency / c.users,
-            "task_energy": task_energy,
-            "server_energy": server_energy_sum,
-            "flight_energy": flight,
-            "total_energy": total_energy,
-            "success_rate": successes / c.users,
-            "drop_rate": dropped / c.users,
-            "target_names": target_names,
-            "offload_ratio_mean": float(np.mean(ratios)),
-            "uav_pos_x": float(self.uav_pos[0]),
-            "uav_pos_y": float(self.uav_pos[1]),
-            "uav_backlog": float(self.uav_backlog),
-            "leo_backlog": float(self.leo_backlog),
-            "uav_battery": float(self.uav_battery),
-            "per_user_latency": per_user_latency,
+            'latency': total_latency,
+            'latency_mean': total_latency / c.users,
+            'task_energy': task_energy,
+            'server_energy': server_energy_sum,
+            'flight_energy': flight,
+            'total_energy': total_energy,
+            'success_rate': successes / c.users,
+            'drop_rate': dropped / c.users,
+            'target_names': target_names,
+            'offload_ratio_mean': float(np.mean(ratios)),
+            'uav_pos_x': float(self.uav_pos[0, 0]),
+            'uav_pos_y': float(self.uav_pos[0, 1]),
+            'uav_backlog': float(self.uav_backlog[0]),
+            'leo_backlog': float(self.leo_backlog),
+            'uav_battery': float(self.uav_battery[0]),
+            'per_user_latency': per_user_latency,
         }
+        return self.observation(), float(reward), done, info
         return self.observation(), float(reward), done, info
     def manifest(self):
         return asdict(self.config)
