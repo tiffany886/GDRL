@@ -330,9 +330,14 @@ class PmeoMEcoPolicy(BasePolicy):
     """
     name = "pmeo_m_eco"
 
-    def __init__(self, balanced=True, horizon=3):
+    def __init__(self, balanced=True, horizon=3, include_future=False,
+                 include_leo=False, name=None):
         self.balanced = balanced
         self.horizon = int(horizon)
+        self.include_future = include_future
+        self.include_leo = include_leo
+        if name is not None:
+            self.name = name
 
     def _candidate_cost(self, obs, config, k, pos_all, mv, leo_for_user,
                         backlogs, leo_backlog):
@@ -365,6 +370,8 @@ class PmeoMEcoPolicy(BasePolicy):
         assoc = associate_users(obs, config, balanced=self.balanced)
         expert = predict_tea_move_multi(obs, config, assoc)
         user_pos = np.asarray(obs["user_pos"], dtype=float)
+        user_vel = np.asarray(obs["user_vel"], dtype=float)
+        user_pos_next = np.clip(user_pos + user_vel * dt, 0.0, config.area_size)
         workload = (np.asarray(obs["task_bits"], dtype=float)
                     * np.asarray(obs["cycles_per_bit"], dtype=float))
         backlogs = uav_backlog_array(obs, config)
@@ -389,6 +396,32 @@ class PmeoMEcoPolicy(BasePolicy):
                 0.5 * _clip_move(expert[k], config.uav_speed_max),
                 _clip_move(centroid - p[k], config.uav_speed_max),
             ]
+            if self.include_future:
+                fcentroid = p[k]
+                if len(idx) > 0:
+                    wsum = float(workload[idx].sum())
+                    if wsum > 1.0e-9:
+                        fcentroid = np.average(user_pos_next[idx], axis=0, weights=workload[idx])
+                    else:
+                        fcentroid = user_pos_next[idx].mean(axis=0)
+                cand.append(_clip_move(fcentroid - p[k], config.uav_speed_max))
+                hp, hv = hotspot_arrays(obs, config)
+                if hp is not None and len(idx) > 0:
+                    d2 = np.sum((hp - p[k]) ** 2, axis=1)
+                    m = int(np.argmin(d2))
+                    hot_next = hp[m] + hv[m] * dt
+                    f_expert = 0.5 * fcentroid + 0.5 * hot_next
+                    cand.append(_clip_move(f_expert - p[k], config.uav_speed_max))
+            if self.include_leo:
+                leo_xy = np.asarray(obs["leo_pos"], dtype=float)[:, :2]
+                if len(idx) > 0:
+                    d_avg = np.mean(
+                        np.linalg.norm(user_pos[idx, None, :] - leo_xy[None, :, :], axis=-1),
+                        axis=0)
+                    m_leo = int(np.argmin(d_avg))
+                else:
+                    m_leo = int(np.argmin(np.linalg.norm(p[k][None, :] - leo_xy, axis=-1)))
+                cand.append(_clip_move(leo_xy[m_leo] - p[k], config.uav_speed_max))
             best_mv = cand[0]
             best_cost = float("inf")
             for mv in cand:
@@ -512,5 +545,6 @@ def multi_uav_policies():
         LocalOnlyMPolicy(),
         RandomMPolicy(),
         PmeoMEcoPolicy(),
+        PmeoMEcoPolicy(horizon=5, include_future=True, name="pmeo_m_eco_h5"),
         MpcMPolicy(),
     ]
