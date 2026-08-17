@@ -1,0 +1,7 @@
+method,reward_mean,success_rate,latency_mean,total_energy_mean,sig
+PMEO-M-Eco (ours),-2864.398,0.907,0.184,322.700,n.s. / n.s. / n.s. / n.s.
+MPC-M-H3,-2955.922,0.903,0.185,329.177,n.s. / n.s. / n.s. / *
+PMEO-M,-2982.495,0.904,0.190,452.292,n.s. / n.s. / n.s. / ***
+Current-pos exact,-3088.310,0.898,0.191,452.195,n.s. / n.s. / n.s. / ***
+Follow-TEA,-3626.629,0.871,0.189,367.686,*** / *** / n.s. / ***
+Random,-9052.936,0.660,0.405,467.837,*** / *** / *** / ***
