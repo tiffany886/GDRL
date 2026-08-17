@@ -315,6 +315,96 @@ class UavOnlyMPolicy(BasePolicy):
         return {"move": moves, "targets": assoc + 1, "ratios": np.ones(U)}
 
 
+class PmeoMEcoPolicy(BasePolicy):
+    """PMEO-M with flight restraint and H-step lookahead (PMEO-M-Eco).
+
+    Same load-balanced association and post-move exact offloading as PMEO-M,
+    but each UAV picks the candidate first move (zero move, expert full/half
+    speed, or pure workload centroid) with the lowest H-step cumulative
+    post-move exact-offload cost plus flight energy.  The H-step lookahead
+    predicts user/hotspot motion, so a UAV stays put only when staying put is
+    truly no worse over the horizon (it does not sacrifice future drops to
+    save one slot of flight).  Decoupled and deterministic: no sampling, and
+    the per-UAV search is over a fixed small candidate set, so the policy
+    remains far cheaper than the sampling-based MPC baseline.
+    """
+    name = "pmeo_m_eco"
+
+    def __init__(self, balanced=True, horizon=3):
+        self.balanced = balanced
+        self.horizon = int(horizon)
+
+    def _candidate_cost(self, obs, config, k, pos_all, mv, leo_for_user,
+                        backlogs, leo_backlog):
+        """H-step cumulative exact-offload cost for UAV k flying mv each slot."""
+        dt = config.slot_seconds
+        user_pos = np.asarray(obs["user_pos"], dtype=float)
+        user_vel = np.asarray(obs["user_vel"], dtype=float)
+        hp = obs.get("hotspot_pos")
+        hv = obs.get("hotspot_vel")
+        total = 0.0
+        for h in range(self.horizon):
+            cost = _offload_cost_tensor(
+                config, user_pos, pos_all, leo_for_user,
+                obs["task_bits"], obs["cycles_per_bit"], backlogs, leo_backlog)
+            total += float(cost.min(axis=(1, 2)).sum())
+            if h < self.horizon - 1:
+                user_pos = np.clip(user_pos + user_vel * dt, 0.0, config.area_size)
+                if hp is not None:
+                    hp = np.asarray(hp, dtype=float) + np.asarray(hv, dtype=float) * dt
+                pos_all = pos_all.copy()
+                pos_all[k] = np.clip(pos_all[k] + mv * dt, 0.0, config.area_size)
+        dist = float(np.linalg.norm(mv)) * dt
+        total += config.energy_weight * self.horizon * flight_energy(config, dist)
+        return total
+
+    def act(self, obs, rng, config):
+        K = int(config.uavs)
+        dt = config.slot_seconds
+        p = uav_pos_array(obs, config)
+        assoc = associate_users(obs, config, balanced=self.balanced)
+        expert = predict_tea_move_multi(obs, config, assoc)
+        user_pos = np.asarray(obs["user_pos"], dtype=float)
+        workload = (np.asarray(obs["task_bits"], dtype=float)
+                    * np.asarray(obs["cycles_per_bit"], dtype=float))
+        backlogs = uav_backlog_array(obs, config)
+        leo_backlog = float(obs.get("leo_backlog", 0.0))
+        d_to_leo = np.linalg.norm(
+            user_pos[:, None, :] - np.asarray(obs["leo_pos"], dtype=float)[None, :, :],
+            axis=-1)
+        leo_for_user = np.asarray(obs["leo_pos"], dtype=float)[np.argmin(d_to_leo, axis=1)]
+        moves = np.zeros((K, 2), dtype=float)
+        for k in range(K):
+            idx = np.where(assoc == k)[0]
+            centroid = p[k]
+            if len(idx) > 0:
+                wsum = float(workload[idx].sum())
+                if wsum > 1.0e-9:
+                    centroid = np.average(user_pos[idx], axis=0, weights=workload[idx])
+                else:
+                    centroid = user_pos[idx].mean(axis=0)
+            cand = [
+                np.zeros(2),
+                _clip_move(expert[k], config.uav_speed_max),
+                0.5 * _clip_move(expert[k], config.uav_speed_max),
+                _clip_move(centroid - p[k], config.uav_speed_max),
+            ]
+            best_mv = cand[0]
+            best_cost = float("inf")
+            for mv in cand:
+                pos_all = p.copy()
+                pos_all[k] = np.clip(p[k] + mv * dt, 0.0, config.area_size)
+                total = self._candidate_cost(obs, config, k, pos_all, mv,
+                                             leo_for_user, backlogs, leo_backlog)
+                if total < best_cost:
+                    best_cost = total
+                    best_mv = mv
+            moves[k] = best_mv
+        p_next = np.clip(p + moves * dt, 0.0, config.area_size)
+        targets, ratios = exact_offload_multi(obs, config, p_next)
+        return {"move": moves, "targets": targets, "ratios": ratios}
+
+
 def _clip_move(mv, speed_max):
     mv = np.asarray(mv, dtype=float)
     norm = float(np.linalg.norm(mv))
@@ -421,5 +511,6 @@ def multi_uav_policies():
         LeoOnlyMPolicy(),
         LocalOnlyMPolicy(),
         RandomMPolicy(),
+        PmeoMEcoPolicy(),
         MpcMPolicy(),
     ]
