@@ -331,11 +331,12 @@ class PmeoMEcoPolicy(BasePolicy):
     name = "pmeo_m_eco"
 
     def __init__(self, balanced=True, horizon=3, include_future=False,
-                 include_leo=False, name=None):
+                 include_leo=False, name=None, cand_mode="full"):
         self.balanced = balanced
         self.horizon = int(horizon)
         self.include_future = include_future
         self.include_leo = include_leo
+        self.cand_mode = cand_mode
         if name is not None:
             self.name = name
 
@@ -396,6 +397,11 @@ class PmeoMEcoPolicy(BasePolicy):
                 0.5 * _clip_move(expert[k], config.uav_speed_max),
                 _clip_move(centroid - p[k], config.uav_speed_max),
             ]
+            if self.cand_mode == "centroid":
+                cand = [
+                    np.zeros(2),
+                    _clip_move(centroid - p[k], config.uav_speed_max),
+                ]
             if self.include_future:
                 fcentroid = p[k]
                 if len(idx) > 0:
@@ -546,5 +552,7 @@ def multi_uav_policies():
         RandomMPolicy(),
         PmeoMEcoPolicy(),
         PmeoMEcoPolicy(horizon=5, include_future=True, name="pmeo_m_eco_h5"),
+        PmeoMEcoPolicy(balanced=False, name="pmeo_m_eco_nb"),
+        PmeoMEcoPolicy(cand_mode="centroid", name="pmeo_m_eco_cc"),
         MpcMPolicy(),
     ]
