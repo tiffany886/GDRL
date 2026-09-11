@@ -1,0 +1,11 @@
+alpha-low seed 0 {'success_rate': 0.896, 'mean_delay_s': 2.943, 'energy_j': 18660.406}
+alpha-low seed 1 {'success_rate': 0.912, 'mean_delay_s': 2.812, 'energy_j': 18878.267}
+alpha-low seed 2 {'success_rate': 0.887, 'mean_delay_s': 2.519, 'energy_j': 18750.388}
+alpha-low seed 3 {'success_rate': 0.888, 'mean_delay_s': 2.95, 'energy_j': 19054.306}
+alpha-low seed 4 {'success_rate': 0.898, 'mean_delay_s': 2.789, 'energy_j': 19198.685}
+alpha-high seed 0 {'success_rate': 0.891, 'mean_delay_s': 2.922, 'energy_j': 18982.124}
+alpha-high seed 1 {'success_rate': 0.917, 'mean_delay_s': 2.76, 'energy_j': 19233.245}
+alpha-high seed 2 {'success_rate': 0.909, 'mean_delay_s': 2.858, 'energy_j': 18679.559}
+alpha-high seed 3 {'success_rate': 0.908, 'mean_delay_s': 2.611, 'energy_j': 20557.02}
+alpha-high seed 4 {'success_rate': 0.906, 'mean_delay_s': 2.659, 'energy_j': 18873.62}
+wrote sens_raw.csv + sens_summary.csv

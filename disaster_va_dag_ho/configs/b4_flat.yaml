@@ -1,0 +1,2 @@
+# B4：扁平 MAPPO/IPPO（学飞+学卸载，无嵌入）——相对 main.yaml 的增量
+obs_terminal_features: true

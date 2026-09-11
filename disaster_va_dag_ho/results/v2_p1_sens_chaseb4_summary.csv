@@ -1,0 +1,2 @@
+cell,R,lambda_high,method,seeds,success_rate,mean_delay_s,energy_j,leo_invalid_attempts,leo_placements,apps_arrived,apps_done,apps_failed,frac_unassociated,fail_uncovered
+R800-l0.2,800.0,0.2,B4-flat,5,0.5714±0.0833,3.6951±0.7117,23092.6633±2684.0113,212.2000±116.7997,177.6000±33.3623,93.6000±5.3141,53.4000±7.7356,29.8000±5.8788,0.2591±0.0419,17.8000±3.6551

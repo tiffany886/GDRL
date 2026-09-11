@@ -1,0 +1,56 @@
+%% Auto-exported by disaster_va_dag_ho/scripts/export_tables_v2.py - do not edit by hand.
+
+\begin{table}[t]
+\caption{Main comparison at the frozen operating point (R=800\,m, $\lambda_{\mathrm{high}}$=0.2\,s$^{-1}$; 40 terminals, 3 UAVs, 2 LEOs, horizon 50\,s). Mean$\pm$std over 5 scene seeds; each RL row is trained on the paired scene seed. Effective latency $=(\sum \mathrm{delay}_{\mathrm{done}}+\mathrm{failed}\cdot 12)/\mathrm{arrived}$; it penalises failed tasks by their deadline so that it is not biased by hard-task selection.}
+\label{tab:main}
+\centering\small
+\begin{tabular}{lcccccc}
+\toprule
+Method & Success rate & Cond.\ delay (s) & Eff.\ lat.\ (s) & UAV energy (J) & Invalid LEO attempts & Unassoc.\ frac. \\
+\midrule
+B1-random & 0.6799$\pm$0.0602 & 1.5050$\pm$0.2484 & 4.14 & 16.5k & 486 & 0.2453$\pm$0.0624 \\
+B2-chase & 0.7452$\pm$0.0424 & 1.8982$\pm$0.2369 & 3.84 & 19.1k & 571 & 0.2293$\pm$0.0655 \\
+B3-hover & 0.6456$\pm$0.0562 & 1.4698$\pm$0.1534 & 4.28 & 15.3k & 468 & 0.2450$\pm$0.0620 \\
+Ours (T-patrol) & \textbf{0.7311$\pm$0.0597} & 1.8883$\pm$0.2380 & 3.79 & 21.2k & 745 & 0.2463$\pm$0.0417 \\
+B6 (no VW-prune) & 0.7436$\pm$0.0325 & 2.0758$\pm$0.0870 & 4.07 & 22.3k & 264 & 0.2463$\pm$0.0417 \\
+B4-flat RL & 0.5705$\pm$0.0437 & 3.5410$\pm$0.1473 & 5.84 & 24.7k & 160 & 0.2513$\pm$0.0028 \\
+B5-SAC-flat & 0.5967$\pm$0.0241 & 3.1130$\pm$0.2385 & 5.43 & 22.3k & 216 & 0.2547$\pm$0.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --- paired one-sided Wilcoxon, center cell (see results/v2_p1_stats_report.txt) ---
+\begin{table}[t]
+\caption{Paired statistics at the center cell (R=800\,m, $\lambda_{\mathrm{high}}$=0.2, scene seeds 0--9; RL baselines evaluated on their paired scene seed; one-sided paired Wilcoxon signed-rank).}
+\label{tab:stats}
+\centering\small
+\begin{tabular}{lccl}
+\toprule
+Claim & $\Delta$ & $n$ & $p$ \\ \midrule
+Ours $-$ B3-hover, success & $+0.0949$ & 10 & 0.0010 \\
+Ours $-$ B4-flat, success & $+0.1306$ & 10 & 0.0010 \\
+B6 $-$ Ours, cond.\ delay & $+0.172$\,s & 10 & 0.0137 \\
+Ours $-$ B2-chase, success (n.s.) & $+0.0069$ & 10 & 1.0000 \\
+Ours $-$ B2-chase, energy (Ours higher) & $+2130$\,J & 10 & 0.0098 \\
+B4-flat 250$\rightarrow$500 ep, success & $-0.001$ & 5 & 0.81 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\caption{Ablations on the frozen config (5 seeds). dep.-viol.\ counts child nodes committed before their parents' outputs exist; legal schedules keep it at zero.}
+\label{tab:abl}
+\centering\small
+\begin{tabular}{lccccccc}
+\toprule
+Ablation & Success & Cond.\ delay (s) & Eff.\ lat.\ (s) & Energy (J) & Invalid LEO & dep.-viol./ep. & Unassoc.\ frac. \\
+\midrule
+Ours (reference) & 0.7311$\pm$0.0597 & 1.8883$\pm$0.2380 & 3.79 & 21.2k & 745 & 0.00$\pm$0.00 & 0.2463$\pm$0.0417 \\
+w/o VW-prune (=B6) & 0.7436$\pm$0.0325 & 2.0758$\pm$0.0870 & 4.07 & 22.3k & 264 & 0.00$\pm$0.00 & 0.2463$\pm$0.0417 \\
+w/o DAG-order & 0.8182$\pm$0.0433 & 1.5759$\pm$0.2371 & 3.00 & 24.1k & 341 & 276.20$\pm$10.05 & 0.2463$\pm$0.0417 \\
+w/o hard cover & 0.8748$\pm$0.0246 & 2.1422$\pm$0.2686 & 2.86 & 25.1k & 1208 & 0.00$\pm$0.00 & 0.0000$\pm$0.0000 \\
+w/o embedding (=B4) & 0.5705$\pm$0.0437 & 3.5410$\pm$0.1473 & 5.84 & 24.7k & 160 & 0.00$\pm$0.00 & 0.2513$\pm$0.0028 \\
+\bottomrule
+\end{tabular}
+\end{table}
+

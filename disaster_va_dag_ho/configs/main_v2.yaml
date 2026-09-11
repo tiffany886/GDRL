@@ -1,0 +1,99 @@
+# VA-DAG-HO v2 主表默认配置（spec v2 §1/§3 锁定值；键名与 env/config.VAConfig 字段一一对应）
+# v1 归档仍为 configs/main.yaml（N=30、软连接、MAPPO 学飞）；本文件是 v2 主表入口。
+# 调参顺序（SPEC §3.3）：先定 uav_cover_radius_m（400–600）让 hover 成功率与
+# frac_unassociated 落窗，再微调 app_deadline_s / dag_cycles_scale / burst_multiplier。
+run_name: "main_v2"
+seed: 0
+
+# --- 区域与实体（v2 §1.1 主表：N=40, K=3, L=2, T=50） ---
+area_size_m: 2000.0
+num_terminals: 40
+num_uavs: 3
+num_leos: 2
+uav_altitude: 100.0
+leo_altitude: 550000.0
+slot_seconds: 1.0
+horizon: 50
+
+# --- v2：硬覆盖 + 空间热点到达（§1.2/§1.4；默认开关见下） ---
+uav_cover_radius_m: 800.0          # W3 标定(2026-09-07, seeds0-4): hover 0.669±0.063 /
+                                   # frac 0.245；Ours(T-patrol) 0.745(+0.076)
+hotspot_arrivals: true             # 空间非齐次到达（圈内 lambda_high / 圈外 lambda_low）
+num_hotspots: 2
+hotspot_radius_m: 300.0            # 热点判定半径
+hotspot_centers: [500.0, 150.0, 1500.0, 1850.0]  # 底部/顶部条带救援点：hover 不可达、
+                                   # T-patrol 条带可覆盖 → 硬覆盖区分度来源（不要移回中部）
+burst_multiplier: 1.0              # 突发窗 [15,35) 全局乘子（1.0 = 不加成，仅热点空间差异）
+
+# --- v2：主方法固定轨迹（§1.5，本文默认 T-patrol；MAPPO 主表不跑） ---
+trajectory: "patrol"
+
+# --- 任务到达（v1 §3.1 保留的按键；突发高低 λ 被热点复用作空间内外 λ） ---
+burst_start_s: 15.0
+burst_end_s: 35.0
+lambda_low_per_s: 0.03             # W3 标定：热点外（0.03/0.20 拉大 embed-vs-flat 差距，见 W3 md）
+lambda_high_per_s: 0.2             # 热点内（v2 主表锁定值）
+terminal_concurrency_max: 2
+app_deadline_s: 12.0
+deadline_margin_s: 5.0
+template_weights: [0.45, 0.30, 0.25]
+dag_cycles_scale: 6.0              # 标定：任务计算量乘子（实验期调参）
+dag_bits_scale: 1.0
+
+# --- 终端移动性（半静态/慢移） ---
+user_speed_max_mps: 2.0
+static_fraction: 0.5
+
+# --- UAV 运动与能量（v2 无充电，规则轨迹仍扣飞行能耗） ---
+uav_speed_max_mps: 20.0
+uav_min_sep_m: 30.0
+soc_init_j: 50000.0
+soc_low_fraction: 0.2
+hover_power_watt: 80.0
+drag_coeff_watt_per_m3s3: 0.004
+speed_cubed_energy: true
+
+# --- 信道（复用 uav_leo_experiment/physics.py 公式所需字段名） ---
+channel_model: "los_nlos"
+bandwidth_hz: 2000000.0
+noise_watt: 2.0e-13
+carrier_hz: 2.4e9
+los_param_a: 9.61
+los_param_b: 0.16
+path_loss_los: 1.6
+path_loss_nlos: 23.0
+path_loss_exp: 2.0
+user_tx_power_watt: 0.2
+uav_tx_power_watt: 0.5
+user_uav_gain_db: 6.0
+uav_leo_gain_db: 50.0
+leo_capacity_bps: 10000000.0
+backhaul_mbps: null
+
+# --- 简化星历：交错可见窗（窗外 C=0 硬约束） ---
+leo_window_period_s: [22.0, 22.0]
+leo_window_duty: [0.4, 0.4]
+leo_window_phase_s: [0.0, 11.0]
+
+# --- 算力/功耗 ---
+uav_cpu_cycles_per_s: 8.0e9
+leo_cpu_cycles_per_s: 60.0e9
+uav_power_watt: 150.0
+comm_power_watt: 20.0
+
+# --- 奖励权重（§5；主表固定一组，附录做敏感性） ---
+alpha_latency: 0.02
+alpha_energy: 0.01
+alpha_fail: 8.0
+low_battery_penalty: 4.0
+boundary_penalty: 1.0
+collision_penalty: 2.0
+
+# --- 观测 ---
+obs_fail_window: 10
+obs_terminal_features: false
+obs_energy: true
+
+# --- 调度器变体/消融开关（B6 置 vw_prune=false；w/o hard-cover 消融置 uav_cover_radius_m=null） ---
+vw_prune: true
+dag_order: true

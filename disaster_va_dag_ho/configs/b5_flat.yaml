@@ -1,0 +1,2 @@
+# B5：扁平 off-policy（MATD3-flat，学飞+学卸载，无嵌入）——增量
+obs_terminal_features: true

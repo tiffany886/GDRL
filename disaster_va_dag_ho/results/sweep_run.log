@@ -1,0 +1,13 @@
+N=20 K=2 burst=1.0 done at 29s
+N=20 K=2 burst=1.5000000000000002 done at 58s
+N=20 K=3 burst=1.0 done at 86s
+N=20 K=3 burst=1.5000000000000002 done at 115s
+N=30 K=2 burst=1.0 done at 145s
+N=30 K=2 burst=1.5000000000000002 done at 178s
+N=30 K=3 burst=1.0 done at 207s
+N=30 K=3 burst=1.5000000000000002 done at 239s
+N=40 K=2 burst=1.0 done at 271s
+N=40 K=2 burst=1.5000000000000002 done at 308s
+N=40 K=3 burst=1.0 done at 341s
+N=40 K=3 burst=1.5000000000000002 done at 379s
+wrote /code/docs/GDRL/disaster_va_dag_ho/results/sweep_raw.csv and sweep_summary.csv in 379s

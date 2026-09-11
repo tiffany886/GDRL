@@ -1,0 +1,2 @@
+# 消融 w/o energy-in-state：观测中 SoC 特征置 0（能量照常消耗）
+obs_energy: false

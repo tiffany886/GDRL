@@ -1,0 +1,69 @@
+# P1-lite 统计报告 (paired Wilcoxon, one-sided greater)
+# deadline_s=12.0  eff_lat=(done_delay_sum + failed*deadline)/arrived
+
+=== v2_p1_sens_grid_raw.csv: 成立区间 + 配对检验 ===
+
+[cell R600-l0.1] seeds=5
+  Ours     succ=0.556±0.092 | cond_delay=1.595s | eff_lat=5.203s
+  hover    succ=0.466±0.054 | cond_delay=1.096s | eff_lat=5.525s
+  B4-flat  succ=0.477±0.033 | cond_delay=2.921s | eff_lat=6.171s
+  Ours-hover succ (gt 0)                       n=5  mean_diff=+0.0905  W=14.0 p=0.0625
+  Ours-B4 succ (gt 0)                          n=5  mean_diff=+0.0793  W=14.0 p=0.0625
+
+[cell R600-l0.2] seeds=5
+  Ours     succ=0.491±0.067 | cond_delay=1.782s | eff_lat=5.756s
+  hover    succ=0.405±0.076 | cond_delay=1.085s | eff_lat=6.221s
+  B4-flat  succ=0.431±0.080 | cond_delay=3.451s | eff_lat=6.597s
+  Ours-hover succ (gt 0)                       n=5  mean_diff=+0.0866  W=14.0 p=0.0625
+  Ours-B4 succ (gt 0)                          n=5  mean_diff=+0.0605  W=15.0 p=0.0312
+
+[cell R800-l0.1] seeds=5
+  Ours     succ=0.723±0.069 | cond_delay=1.524s | eff_lat=3.845s
+  hover    succ=0.667±0.086 | cond_delay=1.285s | eff_lat=3.777s
+  B4-flat  succ=0.676±0.023 | cond_delay=3.122s | eff_lat=5.153s
+  Ours-hover succ (gt 0)                       n=5  mean_diff=+0.0552  W=14.0 p=0.0625
+  Ours-B4 succ (gt 0)                          n=5  mean_diff=+0.0467  W=11.0 p=0.2188
+
+[cell R800-l0.2] seeds=5
+  Ours     succ=0.731±0.060 | cond_delay=1.888s | eff_lat=3.787s
+  hover    succ=0.646±0.056 | cond_delay=1.470s | eff_lat=4.268s
+  B4-flat  succ=0.598±0.080 | cond_delay=3.892s | eff_lat=5.862s
+  Ours-hover succ (gt 0)                       n=5  mean_diff=+0.0855  W=15.0 p=0.0312
+  Ours-B4 succ (gt 0)                          n=5  mean_diff=+0.1331  W=15.0 p=0.0312
+
+[cell R900-l0.1] seeds=5
+  Ours     succ=0.812±0.012 | cond_delay=1.691s | eff_lat=2.967s
+  hover    succ=0.796±0.057 | cond_delay=1.405s | eff_lat=2.996s
+  B4-flat  succ=0.693±0.056 | cond_delay=3.611s | eff_lat=5.096s
+  Ours-hover succ (gt 0)                       n=5  mean_diff=+0.0166  W=9.0 p=0.4062
+  Ours-B4 succ (gt 0)                          n=5  mean_diff=+0.1195  W=15.0 p=0.0312
+
+[cell R900-l0.2] seeds=5
+  Ours     succ=0.813±0.017 | cond_delay=1.907s | eff_lat=3.032s
+  hover    succ=0.789±0.044 | cond_delay=1.789s | eff_lat=3.159s
+  B4-flat  succ=0.676±0.060 | cond_delay=3.653s | eff_lat=5.399s
+  Ours-hover succ (gt 0)                       n=5  mean_diff=+0.0234  W=10.0 p=0.3125
+  Ours-B4 succ (gt 0)                          n=5  mean_diff=+0.1370  W=15.0 p=0.0312
+
+=== v2_p1_sens_c10_raw.csv: 成立区间 + 配对检验 ===
+
+[cell R800-l0.2] seeds=10
+  Ours     succ=0.736±0.059 | cond_delay=1.852s | eff_lat=3.710s
+  hover    succ=0.641±0.075 | cond_delay=1.374s | eff_lat=4.171s
+  chase    succ=0.729±0.079 | cond_delay=1.772s | eff_lat=3.774s
+  B4-flat  succ=0.606±0.088 | cond_delay=3.223s | eff_lat=5.364s
+  Ours-hover succ (gt 0)                       n=10  mean_diff=+0.0949  W=55.0 p=0.0010
+  Ours-B4 succ (gt 0)                          n=10  mean_diff=+0.1306  W=55.0 p=0.0010
+  -- chase（红队对照，双侧） --
+  Ours-chase succ                              n=10  mean_diff=+0.0069  W=22.0 p=1.0000
+  Ours-chase cond_delay                        n=10  mean_diff=+0.0802  W=21.0 p=0.5566
+  Ours-chase energy                            n=10  mean_diff=+2130.4966  W=3.0 p=0.0098
+  Ours-chase eff_lat                           n=10  mean_diff=-0.0644  W=26.0 p=0.9219
+
+=== det-10 中心格 B6 vs Ours（同 scene_seed 配对） ===
+  B6-Ours delay (gt 0)                         n=10  mean_diff=+0.1717  W=49.0 p=0.0137
+  Ours-B6 succ                                 n=10  mean_diff=+0.0013  W=22.0 p=1.0000
+
+=== 冻结中心格 B6 vs Ours (main_table_v2, 按行序配对) ===
+  B6-Ours delay (gt 0)                         n=5  mean_diff=+0.1875  W=14.0 p=0.0625
+  Ours-B6 succ (gt 0)                          n=5  mean_diff=-0.0125  W=5.0 p=0.7812

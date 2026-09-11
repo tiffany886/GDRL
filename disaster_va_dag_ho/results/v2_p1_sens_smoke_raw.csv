@@ -1,0 +1,4 @@
+R,cell,delta,episodes,lambda_high,method,mover,scene_seed,train_seed,wall_s,success_rate,mean_delay_s,energy_j,leo_invalid_attempts,leo_placements,reward,apps_arrived,apps_done,apps_failed,frac_unassociated,fail_uncovered
+800.0,R800-l0.2,,,0.2,Ours(T-patrol),,0,,0.0,0.7105263157894737,2.0434151196048194,21864.577049384665,889,309,-429.9857704938466,114,81,25,0.295,20
+800.0,R800-l0.2,,,0.2,B3-hover,,0,,0.0,0.5688073394495413,1.251818872925062,14600.109278277785,36,231,-438.4010927827778,109,62,35,0.325,35
+800.0,R800-l0.2,-,250,0.2,B4-flat,patrol,0,100,50.16,0.6041666666666666,5.0192796213392885,30920.154286818688,20,148,,96,58,30,0.295,14

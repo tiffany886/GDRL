@@ -1,0 +1,14 @@
+# P0 gate paired stats (exact Wilcoxon, one-sided unless noted; n=10, centre cell R800-l0.2)
+# layouts: aligned = frozen; corners/interior = geometry probe
+
+[aligned]
+  Ours-B3-hover: succ d=+0.0949 p=0.0010 | efflat(base-Ours) d=+0.461s p=0.0020 | energy d=+5350.1J p=0.0020 (2-sided)
+  Ours-B7-hoverHot: succ d=-0.0319 p=0.7842 | efflat(base-Ours) d=-0.298s p=0.8838 | energy d=+3217.5J p=0.0059 (2-sided)
+
+[corners]
+  Ours-B3-hover: succ d=+0.0642 p=0.0020 | efflat(base-Ours) d=+0.272s p=0.1377 | energy d=+5655.1J p=0.0020 (2-sided)
+  Ours-B7-hoverHot: succ d=+0.0509 p=0.1162 | efflat(base-Ours) d=+0.099s p=0.3477 | energy d=+5266.8J p=0.0020 (2-sided)
+
+[interior]
+  Ours-B3-hover: succ d=+0.0150 p=0.2158 | efflat(base-Ours) d=+0.038s p=0.4609 | energy d=+4654.9J p=0.0020 (2-sided)
+  Ours-B7-hoverHot: succ d=-0.0066 p=0.6875 | efflat(base-Ours) d=-0.138s p=0.7539 | energy d=+4908.3J p=0.0020 (2-sided)

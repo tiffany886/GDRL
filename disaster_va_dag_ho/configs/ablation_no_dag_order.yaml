@@ -1,0 +1,2 @@
+# 消融 w/o DAG-order：依赖任务被当作独立任务（每节点一到即独立可调度）
+dag_order: false

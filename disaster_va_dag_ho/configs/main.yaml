@@ -1,0 +1,83 @@
+# VA-DAG-HO 主表默认配置（规格 §2/§3/§5 锁定值；键名与 env/config.VAConfig 字段一一对应）
+run_name: "main"
+seed: 0
+
+# --- 区域与实体（规格 §2.2 主表） ---
+area_size_m: 2000.0            # 2 x 2 km 灾后走廊
+num_terminals: 30
+num_uavs: 3
+num_leos: 2                    # 交错可见窗
+uav_altitude: 100.0            # UAV 高度固定 100 m
+leo_altitude: 550000.0         # LEO 简化高度（仅用于链路损耗）
+slot_seconds: 1.0              # Delta t = 1 s
+horizon: 50                    # T = 50 时隙/回合
+
+# --- 任务到达（§3.1 非齐次泊松；并发上限防队列爆炸） ---
+burst_start_s: 15.0
+burst_end_s: 35.0
+lambda_low_per_s: 0.02         # 每终端每秒（低强度）
+lambda_high_per_s: 0.1         # 每终端每秒（中段救援波）
+terminal_concurrency_max: 2    # 每终端未完成应用上限
+app_deadline_s: 12.0           # 应用截止期（相对到达），W2 可按模板再细分
+deadline_margin_s: 5.0         # 调度紧急度：剩余 <= 该值优先
+template_weights: [0.45, 0.30, 0.25]   # 轻链 / 分叉合并 / 重链
+dag_cycles_scale: 6.0          # 任务计算量标定（见 W2 负载标定）
+dag_bits_scale: 1.0            # 任务传输量标定
+
+# --- 终端移动性（半静态/慢移） ---
+user_speed_max_mps: 2.0
+static_fraction: 0.5
+
+# --- UAV 运动与能量（§3.2；无充电站） ---
+uav_speed_max_mps: 20.0
+uav_min_sep_m: 30.0
+soc_init_j: 50000.0
+soc_low_fraction: 0.2
+hover_power_watt: 80.0
+drag_coeff_watt_per_m3s3: 0.004
+speed_cubed_energy: true
+
+# --- 信道（§4.1，复用 uav_leo_experiment/physics.py 公式所需的字段名） ---
+channel_model: "los_nlos"
+bandwidth_hz: 2000000.0
+noise_watt: 2.0e-13
+carrier_hz: 2.4e9
+los_param_a: 9.61
+los_param_b: 0.16
+path_loss_los: 1.6
+path_loss_nlos: 23.0
+path_loss_exp: 2.0
+user_tx_power_watt: 0.2
+uav_tx_power_watt: 0.5
+user_uav_gain_db: 6.0
+uav_leo_gain_db: 50.0
+leo_capacity_bps: 10000000.0   # 窗内 min(r_{k,l}, C_l) 的 C_l；窗外强制 0
+backhaul_mbps: null
+
+# --- 简化星历：每颗 LEO 的可见窗周期/占空/相位（秒，确定性交错，避免“永远有星”） ---
+leo_window_period_s: [22.0, 22.0]
+leo_window_duty: [0.4, 0.4]
+leo_window_phase_s: [0.0, 11.0]
+
+# --- 算力/功耗占位（W2 ScheduleDAG 开始使用） ---
+uav_cpu_cycles_per_s: 8.0e9
+leo_cpu_cycles_per_s: 60.0e9
+uav_power_watt: 150.0
+comm_power_watt: 20.0
+
+# --- 奖励权重（§5；主表固定一组，附录做敏感性） ---
+alpha_latency: 0.02
+alpha_energy: 0.01
+alpha_fail: 8.0
+low_battery_penalty: 4.0
+boundary_penalty: 1.0
+collision_penalty: 2.0
+
+# --- 观测（W3 细调） ---
+obs_fail_window: 10
+obs_terminal_features: false    # B4 扁平模式置 true（主方法保持 §6 基础观测）
+obs_energy: true                # 消融 w/o energy-in-state 置 false
+
+# --- 调度器变体/消融开关（W4） ---
+vw_prune: true                  # B6 置 false = 常在线假设（忽略可见窗剪枝）
+dag_order: true                 # 消融 w/o DAG-order 置 false = 依赖当独立包

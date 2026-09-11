@@ -1,0 +1,6 @@
+# v2 消融：w/o hard-cover（软连接对照，SPEC_V2_DS.md §3.2）
+# 基底为 main_v2.yaml（N=40、热点到达、T-patrol）；这里把硬覆盖半径置 0
+# （env/config + channel 语义：None 或 <=0 = 软连接，人人有 association）。
+# 说明：为对比公平，本行与主表同样用固定 T-patrol + ScheduleDAG。
+run_name: "ablation_no_hard_cover"
+uav_cover_radius_m: 0

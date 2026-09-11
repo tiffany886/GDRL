@@ -1,0 +1,4 @@
+# 附录 α 敏感性（高权重端）
+alpha_latency: 0.04
+alpha_energy: 0.02
+alpha_fail: 16.0
