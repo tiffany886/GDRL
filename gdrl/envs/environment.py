@@ -11,11 +11,11 @@ import gymnasium as gym
 from gymnasium import spaces
 import torch
 import numpy as np
-from gdrl.envs.channel import ChannelModel
-from gdrl.envs.rate import rate_calculation
-from gdrl.core.energy import tx_energy, comp_energy, local_energy
-from gdrl.core.env_init import ResetFunction
-from gdrl.core.nodes import all_gNB_status, all_UAV_status, all_MEC_status
+from docs.GDRL.gdrl.envs.channel import ChannelModel
+from docs.GDRL.gdrl.envs.rate import rate_calculation
+from docs.GDRL.gdrl.core.energy import tx_energy, comp_energy, local_energy
+from docs.GDRL.gdrl.core.env_init import ResetFunction
+from docs.GDRL.gdrl.core.nodes import all_gNB_status, all_UAV_status, all_MEC_status
 
 
 def _row_tensor(value):
@@ -62,7 +62,7 @@ class NetworkEnvironment(gym.Env):
         self.U = U; self.L = L; self.N = N; self.T = T
         self.gamma1 = 0.8; self.gamma2 = 1; self.c = 3e8
         try:
-            from arg_parser import get_args as _get_args
+            from docs.GDRL.arg_parser import get_args as _get_args
             self.gamma3 = getattr(_get_args(), 'energy_weight', 0.1)
         except Exception:
             self.gamma3 = 0.1

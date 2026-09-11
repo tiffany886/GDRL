@@ -6,8 +6,8 @@ updatevalue() 返回两个闭包：
   load_variable()     : 从闭包读取当前状态
 这种设计允许 NetworkEnvironment 在多步 step() 中共享可变状态。
 """
-from gdrl.core.env_init import ResetFunction
-from arg_parser import get_args
+from docs.GDRL.gdrl.core.env_init import ResetFunction
+from docs.GDRL.arg_parser import get_args
 
 
 def updatevalue():

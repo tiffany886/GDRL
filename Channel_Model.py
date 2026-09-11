@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from Channel_Model import ...`
 # 新代码请改用 from gdrl.envs.channel import ...
-from gdrl.envs.channel import *
+from docs.GDRL.gdrl.envs.channel import *

@@ -86,6 +86,38 @@
 | MPC-H3 | -89.9 | 1.000 | 0.2399 | 102.0 |
 | Random | -364.0 | 0.853 | 0.4091 | 148.7 |
 
+### base arrival probability sweep (0.05/0.15/0.30/0.50) — 2026-09-02
+> v2x_hotspot_hard, 3 seeds (73/74/75) x 40 episodes = 120 paired samples;
+> generator: `uav_leo_experiment/sweep_arrival_prob.py`;
+> full output: `experiments/uav_leo_v2x_paper_final/arrival_sweep/`.
+
+| base_arrival_prob | PMEO | Current-pos | order gain | per user-slot | relative | wins | p (paired t) |
+|---|---|---|---|---|---|---|---|
+| 0.05 (paper default) | -82.29 | -84.78 | **+2.49** | +0.0069 | +2.94% | 111/120 | 1.4e-14 |
+| 0.15 | -94.29 | -97.43 | **+3.14** | +0.0087 | +3.22% | 111/120 | 5.1e-19 |
+| 0.30 | -111.69 | -114.68 | **+2.99** | +0.0083 | +2.61% | 117/120 | 3.5e-14 |
+| 0.50 | -132.58 | -137.13 | **+4.55** | +0.0126 | +3.32% | 120/120 | 9.8e-22 |
+
+**Conclusion 1 (mechanism robustness):** the decision-order gain does NOT depend on the
+0.05 background arrival choice. Raising it to 0.5 keeps post-move significantly better
+(111~120/120 wins, p<1e-13) with relative gain stable at 2.6%–3.3% (hotspot arrival stays
+1.0, so the UAV still moves; more user-slots carry tasks, enlarging the error surface).
+→ 命题 1 的不劣性 + 该扫描证明机制在负载分散度变化下稳健。
+
+**Conclusion 2 (honest MPC boundary):** the higher the background load, the larger MPC's
+lookahead advantage on the single-UAV trajectory layer.
+
+| base_arrival_prob | PMEO vs MPC-H3 | PMEO vs MPC-H10 |
+|---|---|---|
+| 0.05 | -0.15 (38/120, p=0.73, tie) | -0.87 (33/120, p=0.008) |
+| 0.15 | -1.95 (23/120, p=1.3e-5) | -2.15 (34/120, p=5.0e-6) |
+| 0.30 | -3.88 (15/120, p=5.0e-11) | -3.77 (22/120, p=7.5e-9) |
+| 0.50 | -4.69 (15/120, p=1.7e-13) | -3.04 (34/120, p=2.9e-6) |
+
+MPC also flies more energy-efficiently (102–130 J vs PMEO 148–151 J).
+→ 口径：卸载层（决策顺序）在所有负载下稳健；单机轨迹层低负载与 MPC 持平、高负载需前瞻；
+多机 PMEO-M-Eco 赢 MPC 的故事不受影响。
+
 ### energy weight = 0.01
 | method | reward | success | latency (s) | energy |
 |---|---|---|---|---|

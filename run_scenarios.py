@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from experiment_config import SCENARIOS
+from docs.GDRL.experiment_config import SCENARIOS
 
 
 def parse_args():

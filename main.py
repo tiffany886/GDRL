@@ -4,23 +4,23 @@ from pathlib import Path
 
 import torch.nn
 
-from Environment_baseline import NetworkEnvironment
-from Generate_adj_matrix import *
-from UserRequest import all_user_feature
-from UserStatus import *
+from docs.GDRL.Environment_baseline import NetworkEnvironment
+from docs.GDRL.Generate_adj_matrix import *
+from docs.GDRL.UserRequest import all_user_feature
+from docs.GDRL.UserStatus import *
 from torch_geometric.utils import to_edge_index
-from arg_parser import get_args
-from UpdateVariable import updatevalue
-from amp import *
+from docs.GDRL.arg_parser import get_args
+from docs.GDRL.UpdateVariable import updatevalue
+from docs.GDRL.amp import *
 from sb3_contrib import TRPO
-from CallBack import CustomCallback
+from docs.GDRL.CallBack import CustomCallback
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
-from Feature import CustomFeaturesExtractor
+from docs.GDRL.Feature import CustomFeaturesExtractor
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
 from torch.utils.tensorboard import SummaryWriter
-from experiment_config import amn_paths, default_single_dir, scenario_tag, write_manifest
+from docs.GDRL.experiment_config import amn_paths, default_single_dir, scenario_tag, write_manifest
 
 
 
@@ -71,8 +71,8 @@ if __name__ == "__main__":
     # Feature.py 当前从项目根目录读取 edge_index.pt，因此保留一份运行时副本。
     torch.save(edge_index, 'edge_index.pt')
     # 保存静态边特征（归一化节点间距离，传播延迟代理）
-    from gdrl.core.graph import compute_edge_attr as _cef
-    from gdrl.core.nodes import all_LEO_status as _all_leo, all_HAPS_status as _all_haps
+    from docs.GDRL.gdrl.core.graph import compute_edge_attr as _cef
+    from docs.GDRL.gdrl.core.nodes import all_LEO_status as _all_leo, all_HAPS_status as _all_haps
     _, _U_place = all_user_status(args.U)
     _, _LEO_place, _ = _all_leo(args.L)
     _, _HAPS_place, _ = _all_haps(args.N)

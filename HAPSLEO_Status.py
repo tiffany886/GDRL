@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from HAPSLEO_Status import ...`
 # 新代码请改用 from gdrl.core.nodes import ...
-from gdrl.core.nodes import *
+from docs.GDRL.gdrl.core.nodes import *

@@ -1777,7 +1777,12 @@ class GraphPPOTrainer(PPOTrainer):
     @classmethod
     def load(cls, path, config):
         data = torch.load(path, map_location=DEVICE)
-        trainer = cls(config, encoder=data.get("encoder", "gat"),
+        encoder = data.get("encoder")
+        if encoder is None:
+            keys = set(data["state_dict"].keys())
+            encoder = "transformer" if any(
+                "self_attn.in_proj_weight" in k for k in keys) else "gat"
+        trainer = cls(config, encoder=encoder,
                       enc_hidden=data.get("enc_hidden", 96),
                       heads=data.get("heads", 4), layers=data.get("layers", 2))
         trainer.policy.load_state_dict(data["state_dict"])

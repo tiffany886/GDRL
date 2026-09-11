@@ -15,6 +15,7 @@ from .env import UavLeoEnv
 from .learning import (D3QNPolicy, DDPGPolicy, DDQNPolicy, DQNPolicy, GraphPPOPolicy,
                            PPOPolicy, SACPolicy, TD3Policy)
 from .traj_drl import GDRLPolicy
+from .hado import HadoPolicy
 
 
 def parse_args():
@@ -32,6 +33,8 @@ def parse_args():
     parser.add_argument("--bandwidth_hz", type=float, default=None)
     parser.add_argument("--hotspot_speed", type=float, default=None)
     parser.add_argument("--hotspot_radius", type=float, default=None)
+    parser.add_argument("--hotspot_vel_noise", type=float, default=None,
+                        help="Per-slot random velocity jitter (fraction of hotspot_speed)")
     parser.add_argument("--energy_weight", type=float, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--ppo_model", type=str, default=None, help="Path to trained PPO model.pt")
@@ -45,6 +48,7 @@ def parse_args():
     parser.add_argument("--ddpg_model", type=str, default=None, help="Path to trained DDPG model.pt")
     parser.add_argument("--sac_model", type=str, default=None, help="Path to trained SAC model.pt")
     parser.add_argument("--gdrl_model", type=str, default=None, help="Path to trained GDRL trajectory model.pt")
+    parser.add_argument("--hado_model", type=str, default=None, help="Path to trained HADO model.pt")
     parser.add_argument("--gdrl_ablate_traj", action="store_true",
                         help="GDRL ablation: learned offloading, frozen expert trajectory (delta=0).")
     parser.add_argument("--gdrl_ablate_offload", action="store_true",
@@ -72,6 +76,7 @@ def build_config(args):
         "bandwidth_hz": args.bandwidth_hz,
         "hotspot_speed": args.hotspot_speed,
         "hotspot_radius": args.hotspot_radius,
+        "hotspot_vel_noise": args.hotspot_vel_noise,
         "energy_weight": args.energy_weight,
     }
     overrides = {key: value for key, value in cli.items() if value is not None}
@@ -111,6 +116,8 @@ def build_policies(args):
             policies.append(GDRLPolicy(model_path=args.gdrl_model, ablate_traj=True))
         if getattr(args, "gdrl_ablate_offload", False):
             policies.append(GDRLPolicy(model_path=args.gdrl_model, ablate_offload=True))
+    if getattr(args, "hado_model", None):
+        policies.append(HadoPolicy(model_path=args.hado_model))
     if getattr(args, "methods", None):
         allowed = {name.strip() for name in args.methods.split(",") if name.strip()}
         policies = [pol for pol in policies if pol.name in allowed]

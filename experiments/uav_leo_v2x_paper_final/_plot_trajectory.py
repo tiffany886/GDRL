@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿﻿# -*- coding: utf-8 -*-
 """fig8: multi-UAV trajectories for PMEO-M-Eco / MPC-M-H3 / PMEO-M on the same episode."""
 import os
 import numpy as np
@@ -6,9 +6,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from uav_leo_experiment.run_multi_uav import build_config
-from uav_leo_experiment.env import UavLeoEnv
-from uav_leo_experiment.multi_uav import (PmeoMEcoPolicy, MpcMPolicy, PmeoMPolicy,
+from docs.GDRL.uav_leo_experiment.run_multi_uav import build_config
+from docs.GDRL.uav_leo_experiment.env import UavLeoEnv
+from docs.GDRL.uav_leo_experiment.multi_uav import (PmeoMEcoPolicy, MpcMPolicy, PmeoMPolicy,
                                           uav_pos_array)
 
 BASE = r"experiments/uav_leo_v2x_paper_final"

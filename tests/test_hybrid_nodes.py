@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np
-from gdrl.core.nodes import (
+from docs.GDRL.gdrl.core.nodes import (
     LEO_status, all_LEO_status,
     UAV_status, all_UAV_status,
     gNB_status, all_gNB_status,

@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np
-from gdrl.core.graph import GenerateAdjacency, GenerateAdjacency_hybrid, _decode_action_12bit
+from docs.GDRL.gdrl.core.graph import GenerateAdjacency, GenerateAdjacency_hybrid, _decode_action_12bit
 
 
 def test_generate_adjacency_backward_compat():

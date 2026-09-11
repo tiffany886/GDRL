@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from Generate_inital_environment import ...`
 # 新代码请改用 from gdrl.core.env_init import ...
-from gdrl.core.env_init import *
+from docs.GDRL.gdrl.core.env_init import *

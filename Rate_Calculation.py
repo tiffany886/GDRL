@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from Rate_Calculation import ...`
 # 新代码请改用 from gdrl.envs.rate import ...
-from gdrl.envs.rate import *
+from docs.GDRL.gdrl.envs.rate import *

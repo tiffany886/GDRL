@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿﻿# -*- coding: utf-8 -*-
 """Paper-quality figure suite for the multi-UAV UAV-LEO experiment.
 
 Produces (all 300 dpi, consistent style):
@@ -113,7 +113,7 @@ def aligned(ours_acc, m, key):
 # ------------------------------------------------------------------ data
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _load_data import by_seed as load_by_seed, SEED_ORDER
+from docs.GDRL.experiments.uav_leo_v2x_paper_final._load_data import by_seed as load_by_seed, SEED_ORDER
 
 _bys = load_by_seed("k3")
 k3_all = collections.defaultdict(lambda: collections.defaultdict(list))

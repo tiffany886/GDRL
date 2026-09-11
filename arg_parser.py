@@ -1,5 +1,5 @@
 import argparse
-from experiment_config import add_scenario_arguments, apply_scenario, validate_scenario
+from docs.GDRL.experiment_config import add_scenario_arguments, apply_scenario, validate_scenario
 
 
 def get_args():

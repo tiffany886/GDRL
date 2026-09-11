@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, GATv2Conv
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from arg_parser import get_args
+from docs.GDRL.arg_parser import get_args
 
 args = get_args()
 
@@ -31,7 +31,7 @@ class CustomFeaturesExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim: int = 32):
         super(CustomFeaturesExtractor, self).__init__(observation_space, features_dim)
 
-        from experiment_config import _is_hybrid
+        from docs.GDRL.experiment_config import _is_hybrid
         _args = get_args()  # re-parse per-instantiation so test overrides of sys.argv are respected
         self._is_hybrid = _is_hybrid(_args)
 

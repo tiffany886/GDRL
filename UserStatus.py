@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from UserStatus import ...`
 # 新代码请改用 from gdrl.core.user import ...
-from gdrl.core.user import *
+from docs.GDRL.gdrl.core.user import *

@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from UserRequest import ...`
 # 新代码请改用 from gdrl.core.user_request import ...
-from gdrl.core.user_request import *
+from docs.GDRL.gdrl.core.user_request import *

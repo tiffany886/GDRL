@@ -3,9 +3,9 @@
 import argparse, json, time
 from pathlib import Path
 from dataclasses import replace
-from uav_leo_experiment.run_multi_uav import build_config
-from uav_leo_experiment.run_experiment import run_policy, write_csv
-from uav_leo_experiment.multi_uav import (PmeoMPolicy, PmeoMEcoPolicy, MpcMPolicy)
+from docs.GDRL.uav_leo_experiment.run_multi_uav import build_config
+from docs.GDRL.uav_leo_experiment.run_experiment import run_policy, write_csv
+from docs.GDRL.uav_leo_experiment.multi_uav import (PmeoMPolicy, PmeoMEcoPolicy, MpcMPolicy)
 
 def _eco_f5():
     pol = PmeoMEcoPolicy(horizon=5, include_future=True)

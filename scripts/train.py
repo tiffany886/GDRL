@@ -24,15 +24,15 @@ from torch.utils.tensorboard import SummaryWriter
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
 
-from arg_parser import get_args
-from experiment_config import amn_paths, default_single_dir, scenario_tag, write_manifest
-from gdrl.core.user_request import all_user_feature
-from gdrl.core.graph import GenerateAdjacency
-from gdrl.core.update import updatevalue
-from gdrl.core.callback import CustomCallback
-from gdrl.models.amn import AutoencoderDis, AutoencoderCon, M1EncoderDis, M1DecoderDis, M1EncoderCon, M1DecoderCon
-from gdrl.models.feature import CustomFeaturesExtractor
-from gdrl.envs.environment import NetworkEnvironment
+from docs.GDRL.arg_parser import get_args
+from docs.GDRL.experiment_config import amn_paths, default_single_dir, scenario_tag, write_manifest
+from docs.GDRL.gdrl.core.user_request import all_user_feature
+from docs.GDRL.gdrl.core.graph import GenerateAdjacency
+from docs.GDRL.gdrl.core.update import updatevalue
+from docs.GDRL.gdrl.core.callback import CustomCallback
+from docs.GDRL.gdrl.models.amn import AutoencoderDis, AutoencoderCon, M1EncoderDis, M1DecoderDis, M1EncoderCon, M1DecoderCon
+from docs.GDRL.gdrl.models.feature import CustomFeaturesExtractor
+from docs.GDRL.gdrl.envs.environment import NetworkEnvironment
 
 
 if __name__ == "__main__":

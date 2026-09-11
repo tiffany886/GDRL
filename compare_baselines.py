@@ -16,7 +16,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from sb3_contrib import TRPO
 from torch_geometric.utils import to_edge_index
-from experiment_config import (
+from docs.GDRL.experiment_config import (
     add_scenario_arguments,
     amn_paths,
     apply_scenario,
@@ -282,12 +282,12 @@ def make_state_store(args, ResetFunction):
 
 
 def build_components(args, output_dir):
-    from Generate_inital_environment import ResetFunction
-    from UserRequest import all_user_feature
-    from amp import (AutoencoderCon, AutoencoderDis, AutoencoderPartial,
+    from docs.GDRL.Generate_inital_environment import ResetFunction
+    from docs.GDRL.UserRequest import all_user_feature
+    from docs.GDRL.amp import (AutoencoderCon, AutoencoderDis, AutoencoderPartial,
                      M1DecoderCon, M1DecoderDis, M1DecoderPartial,
                      M1EncoderCon, M1EncoderDis, M1EncoderPartial)
-    from experiment_config import _is_hybrid
+    from docs.GDRL.experiment_config import _is_hybrid
 
     Uf, Pu, Su, Ou, Vu, Lu = all_user_feature(args.U, args.T)
     user_requests = {"Uf": Uf, "Pu": Pu, "Su": Su, "Ou": Ou, "Vu": Vu, "Lu": Lu}
@@ -297,7 +297,7 @@ def build_components(args, output_dir):
 
     hybrid = _is_hybrid(args)
     if hybrid:
-        from gdrl.core.graph import GenerateAdjacency_hybrid
+        from docs.GDRL.gdrl.core.graph import GenerateAdjacency_hybrid
         G = getattr(args, "G", 0)
         V = getattr(args, "V", 0)
         M = getattr(args, "M", 0)
@@ -305,7 +305,7 @@ def build_components(args, output_dir):
             args.U, G, V, args.L, M
         )
     else:
-        from gdrl.core.graph import GenerateAdjacency
+        from docs.GDRL.gdrl.core.graph import GenerateAdjacency
         action_space_len, adj_matrix, user_lists = GenerateAdjacency(args.U, args.L, args.N)
 
     sparse_adj_matrix = torch.Tensor(adj_matrix).to_sparse()
@@ -316,13 +316,13 @@ def build_components(args, output_dir):
 
     # 保存静态边特征（归一化节点间距离），供 GATv2Conv 使用。
     # 必须在 build_components 中生成，以确保边数与当前场景匹配。
-    from UserStatus import all_user_status as _aus
-    from gdrl.core.nodes import all_LEO_status as _als
+    from docs.GDRL.UserStatus import all_user_status as _aus
+    from docs.GDRL.gdrl.core.nodes import all_LEO_status as _als
     _, _U_place = _aus(args.U)
     _, _LEO_place, _ = _als(args.L)
     _ei_np = np.stack(np.where(adj_matrix > 0), axis=0)
     if hybrid:
-        from gdrl.core.nodes import all_gNB_status as _ags, all_UAV_status as _avs, all_MEC_status as _ams
+        from docs.GDRL.gdrl.core.nodes import all_gNB_status as _ags, all_UAV_status as _avs, all_MEC_status as _ams
         _, _gNB_place, _ = _ags(G)
         _, _UAV_place, _ = _avs(V)
         _, _MEC_place, _ = _ams(M)
@@ -339,8 +339,8 @@ def build_components(args, output_dir):
         _max_d = float(_dist.max()) if _dist.max() > 0 else 1.0
         _edge_attr = torch.tensor((_dist / _max_d).reshape(-1, 1), dtype=torch.float32)
     else:
-        from gdrl.core.graph import compute_edge_attr as _cef
-        from gdrl.core.nodes import all_HAPS_status as _ahs
+        from docs.GDRL.gdrl.core.graph import compute_edge_attr as _cef
+        from docs.GDRL.gdrl.core.nodes import all_HAPS_status as _ahs
         _, _HAPS_place, _ = _ahs(args.N)
         _edge_attr = _cef(_ei_np, _U_place, _LEO_place, _HAPS_place, args.U, args.L, args.N)
     torch.save(_edge_attr, output_dir / "edge_attr.pt")
@@ -442,7 +442,7 @@ def report_amn_range(encoder_con, user_count):
 
 
 def make_raw_env(args, user_requests, user_lists, encoder_dis, encoder_con, ResetFunction, monitor_path=None):
-    from Environment_baseline import NetworkEnvironment
+    from docs.GDRL.Environment_baseline import NetworkEnvironment
 
     save_var, load_var = make_state_store(args, ResetFunction)
     env = NetworkEnvironment(
@@ -502,7 +502,7 @@ def evaluate_random(args, user_requests, user_lists, encoder_dis, encoder_con, R
 
 def train_method(args, method, user_requests, user_lists, encoder_dis, encoder_con,
                  autoencoder_dis, autoencoder_con, ResetFunction, output_dir):
-    from Feature import CustomFeaturesExtractor
+    from docs.GDRL.Feature import CustomFeaturesExtractor
 
     env = make_vec_env(args, method, user_requests, user_lists, encoder_dis, encoder_con, ResetFunction, output_dir)
     callback = MetricsCallback(

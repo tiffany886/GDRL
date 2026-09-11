@@ -10,10 +10,10 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from uav_leo_experiment.run_multi_uav import build_config
-from uav_leo_experiment.env import UavLeoEnv
-from uav_leo_experiment.multi_uav_drl import make_trainer, act_global, lmax_for
-from uav_leo_experiment.multi_uav import associate_users
+from docs.GDRL.uav_leo_experiment.run_multi_uav import build_config
+from docs.GDRL.uav_leo_experiment.env import UavLeoEnv
+from docs.GDRL.uav_leo_experiment.multi_uav_drl import make_trainer, act_global, lmax_for
+from docs.GDRL.uav_leo_experiment.multi_uav import associate_users
 
 SEEDS = [1, 7, 42, 73, 314, 555, 888, 999, 12345, 2024]
 

@@ -64,8 +64,8 @@ GDRL 原文：Y. Cai et al., "Graphic Deep Reinforcement Learning for Dynamic Re
 
 **三个可写贡献**：
 - **C1 决策顺序（decision-order）**：移动前位置求解卸载会系统性高估链路速率 → 决策次优。实验：post-move 比 current-position 好 +2.2（hard）/ +4.7（stress），5-seed 配对 t 检验 p<0.0001。可证明：命题 1（不劣性 `cost(p_t,O_post) ≤ cost(p_t,O_pre)` 恒成立）；命题 2（Lipschitz 上界：收益 ∝ 移动量 × 链路距离敏感度）。
-- **C2 学习不必要**：GDRL（残差 PPO，40k 步训练）与 PMEO 几乎完全一致（hard -85.2 vs -85.2，stress -132.4 vs -132.6，p=0.09/0.50 不显著）；消融去掉轨迹学习/精确卸载 Δ≈0 → **在卸载层做对决策顺序，比任何学习都更有效**。
-- **C3 MPC 长视界无益**：MPC-H3/H10/H30 均更差（-85.6/-93.9/-131.7），长视界前瞻在该设定下不是杠杆。
+- **C2 学习不必要**：GDRL（残差 PPO，40k 步训练）与 PMEO 几乎完全一致（修复版 hard -81.6 vs -81.7，stress -135.4 vs -135.9，Δ<0.6）；消融去掉轨迹学习/精确卸载 Δ≈0 → **在卸载层做对决策顺序，比任何学习都更有效**。
+- **C3 与 MPC 关系（修复版重定位）**：MPC-H3/H10 是更强的 lookahead 基线（200 集配对检验显著优于 PMEO，但 PMEO 零训练达到其 98~99.7% 性能）；多 UAV 场景 PMEO-M-Eco 在全部 energy weight 下优于 MPC-M-H3。
 
 **诚实边界（Discussion）**：`energy_weight=0.001` 时 PMEO 与 MPC 打平但能耗更高（148 vs 124）；能量定价后 MPC 反超 → 节能轨迹规划确实需要前瞻；最终方法建议表述为 **PMEO 负责卸载层（决策顺序），轨迹层默认专家轨迹、能量敏感场景换 MPC 轨迹**。
 
@@ -73,9 +73,9 @@ GDRL 原文：Y. Cai et al., "Graphic Deep Reinforcement Learning for Dynamic Re
 
 | 方法 | hard | stress | 说明 |
 |---|---|---|---|
-| **PMEO (ours, 免训练)** | **-85.2** | **-132.4** | — |
-| GDRL (residual PPO) | -85.2 | -132.6 | 与 PMEO 无显著差异 |
-| MPC-H3 / H10 / H30 | -85.6 / -93.9 / -131.7 | -134.8 / -147.8 / -209.2 | 长视界无益 |
+| **PMEO (ours, 免训练)** | **-81.7** | **-135.9** | — |
+| GDRL (residual PPO) | -81.6 | -135.4 | 与 PMEO 无实际差异（Δ<0.6） |
+| MPC-H3 / H10 / H30 | -81.4 / -80.6 / -109.0 | -93.8 / -134.5 / -169.7 | H3/H10 略优 PMEO（lookahead 基线），H30 仍差 |
 | Current-pos exact / Predict-TEA | -87.4 | -137.0 | 决策顺序收益 +2.2/+4.7 |
 | Follow-TEA | -93.2 | -140.1 | 无预测的轨迹 |
 | PPO (BC+KL) / GAT-PPO / Transformer-PPO | -106.7 / -120.0 / -117.7 | -165.7 / -184.2 / -178.4 | 学习基线 |
@@ -103,3 +103,25 @@ GDRL 原文：Y. Cai et al., "Graphic Deep Reinforcement Learning for Dynamic Re
 - 一键复现（规模扫描）：`python -m uav_leo_experiment.scale_sweep --lines real --scales 1.0,1.5,2.0,3.0 --seeds <...> --episodes 15`
 - 主表评估：`experiments/uav_leo_v2x_paper_final/eval_40ep.bat`
 - 参考文献映射：见 `route_a_method.md` 第 6 节（9 篇，含 GDRL 原文 [7]）。
+
+### 8.1 论文线（PMEO + LAETS）硬化实验的复现命令
+
+均从仓库根目录 `/code/docs/GDRL` 运行，环境用 `/root/miniconda3/envs/pycorrector310/bin/python`：
+
+```bash
+# P1-6：定理 1 的可测 Δ（→ delta_tracking.json / fig_delta_tracking.png）
+cd experiments/uav_leo_v2x_paper_final && PYTHONPATH=/code python _measure_delta.py && python _plot_delta.py
+
+# P1-5：本地可观测触发（→ local_proxy/）
+PYTHONPATH=/code python _run_local_proxy.py && python _analyze_sync_overhead.py
+
+# P1-5：刷新通道鲁棒性（→ channel_robustness/、fig_channel_robustness.png）
+#       3 条件 × 8 配置 × seeds；约 26 min / 5 seeds
+PYTHONPATH=/code python _run_channel_robustness.py --seeds 1,7,42,73,2024
+python _analyze_channel_robustness.py          # 种子配对领先量 + t 检验
+python _plot_channel_robustness.py
+python _emit_rq7_markdown.py                   # 正文 RQ7 段落（数字直接来自 JSON）
+```
+
+注意：**oracle 负载触发必须用 `probe_m=1`**（逐时隙探测）才能复现论文 §4.5 的 49.4 / −8162.9；
+`_run_channel_robustness.py` 已对该配置固定 `probe_m=1`，其余配置用默认 `probe_m=2`。

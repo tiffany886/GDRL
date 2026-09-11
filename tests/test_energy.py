@@ -1,6 +1,6 @@
 # tests/test_energy.py
 import pytest
-from gdrl.core.energy import tx_energy, comp_energy, local_energy, energy_efficiency
+from docs.GDRL.gdrl.core.energy import tx_energy, comp_energy, local_energy, energy_efficiency
 
 def test_tx_energy_basic():
     # 10W 发射，9000 bit，1e6 bit/s 速率 → 0.09 J

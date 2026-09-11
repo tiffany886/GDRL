@@ -1,10 +1,10 @@
-﻿# -*- coding: utf-8 -*-
+﻿﻿# -*- coding: utf-8 -*-
 """Regenerate multi_uav_k3_table.tex / .csv with DRL baselines + significance (seed-aligned)."""
 import csv, io, os
 import numpy as np
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _load_data import by_seed, aligned, paired_p, stars, KEYS, BASE
+from docs.GDRL.experiments.uav_leo_v2x_paper_final._load_data import by_seed, aligned, paired_p, stars, KEYS, BASE
 
 acc = by_seed("k3")
 ORDER = ["pmeo_m_eco", "mpc_m_h3", "pmeo_m", "current_exact_m", "follow_tea_m",

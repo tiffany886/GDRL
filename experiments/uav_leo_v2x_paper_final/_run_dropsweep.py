@@ -2,10 +2,10 @@
 """k3 drop-penalty sensitivity: does PMEO-M-Eco's advantage widen when drops are expensive?"""
 import argparse, json, time
 from pathlib import Path
-from uav_leo_experiment.run_multi_uav import build_config, PRESETS
-from uav_leo_experiment.run_experiment import run_policy, write_csv
-from uav_leo_experiment.config import make_config
-from uav_leo_experiment.multi_uav import multi_uav_policies
+from docs.GDRL.uav_leo_experiment.run_multi_uav import build_config, PRESETS
+from docs.GDRL.uav_leo_experiment.run_experiment import run_policy, write_csv
+from docs.GDRL.uav_leo_experiment.config import make_config
+from docs.GDRL.uav_leo_experiment.multi_uav import multi_uav_policies
 from dataclasses import replace
 
 def main():

@@ -15,10 +15,11 @@ from .learning import (D3QNTrainer, DDPGTrainer, DDQNTrainer, DEVICE, DQNTrainer
                          GraphPPOTrainer, PPOTrainer, SACTrainer, TD3Trainer,
                          evaluate_policy)
 from .traj_drl import TrajPPOTrainer, evaluate_traj_policy
+from .hado import HadoPPOTrainer
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train PPO/DQN on UAV-LEO v2x.")
-    parser.add_argument("--method", choices=["ppo", "dqn", "ddqn", "d3qn", "td3", "ddpg", "sac", "gdrl", "gat_ppo", "transformer_ppo"], default="ppo")
+    parser.add_argument("--method", choices=["ppo", "dqn", "ddqn", "d3qn", "td3", "ddpg", "sac", "gdrl", "gat_ppo", "transformer_ppo", "hado"], default="ppo")
     parser.add_argument("--difficulty", choices=sorted(DIFFICULTY_PRESETS), default="v2x_hard")
     parser.add_argument("--users", type=int, default=None)
     parser.add_argument("--leos", type=int, default=4)
@@ -30,6 +31,12 @@ def parse_args():
     parser.add_argument("--entropy_coef", type=float, default=None)
     parser.add_argument("--move_std", type=float, default=0.25,
                         help="std of the Gaussian UAV-move exploration head")
+    parser.add_argument("--hado_recurrent", type=int, default=1,
+                        help="HADO: enable GRU temporal memory (QECO-inspired)")
+    parser.add_argument("--gamma", type=float, default=0.99,
+                        help="HADO: reward discount factor")
+    parser.add_argument("--gae_lambda", type=float, default=0.95,
+                        help="HADO: GAE trace-decay lambda (1.0 = Monte-Carlo returns)")
     parser.add_argument("--seed", type=int, default=73)
     parser.add_argument("--eval_every", type=int, default=5000)
     parser.add_argument("--pretrain_steps", type=int, default=3000)
@@ -62,7 +69,38 @@ def main():
                                      users=(args.users if args.users is not None else users_for(args.difficulty)), leos=args.leos,
                                      episodes=5, horizon=args.horizon, seed=args.seed, **overrides))
 
-    if args.method == "ppo":
+    if args.method == "hado":
+        trainer = HadoPPOTrainer(config, lr=args.lr, rollout_steps=args.rollout_steps,
+                                 minibatch=args.batch_size,
+                                 entropy_coef=args.entropy_coef if args.entropy_coef is not None else 0.01,
+                                 move_std=args.move_std, use_recurrent=bool(args.hado_recurrent),
+                                 gamma=args.gamma, gae_lambda=args.gae_lambda)
+        if args.pretrain_steps > 0:
+            trainer.pretrain_expert(env, steps=args.pretrain_steps, seed=args.seed,
+                                    expert=args.pretrain_expert)
+            bc_score = trainer.evaluate(eval_env, episodes=5, deterministic=True)
+            bc_state = {key: value.clone() for key, value in trainer.policy.state_dict().items()}
+            best_path = out / "model_best.pt"
+            if not best_path.exists() or bc_score > float(torch.load(best_path, map_location="cpu")["eval_reward"]):
+                torch.save({"state_dict": trainer.policy.state_dict(), "U": trainer.U,
+                            "eval_reward": bc_score, "use_recurrent": trainer.use_recurrent}, best_path)
+            print(f"BC eval = {bc_score:.2f} (seeded model_best)", flush=True)
+        kl_anchor = None
+        if (args.kl_coef > 0.0 or args.critic_warmup_updates > 0) and args.pretrain_steps > 0:
+            kl_anchor = bc_state
+        trainer.train(env, steps=args.steps, eval_env=eval_env,
+                      eval_every=args.eval_every, log_path=out, seed=args.seed,
+                      kl_anchor=kl_anchor, kl_coef=args.kl_coef,
+                      critic_warmup_updates=args.critic_warmup_updates)
+        best_path = out / "model_best.pt"
+        if best_path.exists():
+            trainer.policy.load_state_dict(torch.load(best_path, map_location="cpu")["state_dict"])
+            trainer.policy.to(DEVICE)
+            print("Loaded best eval checkpoint", flush=True)
+        final = trainer.evaluate(eval_env, episodes=10, deterministic=True)
+        trainer.save(out / "model.pt")
+
+    elif args.method == "ppo":
         trainer = PPOTrainer(config, lr=args.lr, rollout_steps=args.rollout_steps,
                              minibatch=args.batch_size,
                              entropy_coef=args.entropy_coef if args.entropy_coef is not None else 0.003,

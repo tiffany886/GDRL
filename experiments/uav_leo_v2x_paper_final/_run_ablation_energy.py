@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+﻿﻿# -*- coding: utf-8 -*-
 """Ablation (nb/cc) + energy_weight sensitivity for PMEO-M-Eco at k3.
 
 Usage:
@@ -9,9 +9,9 @@ import argparse, json, time
 from pathlib import Path
 from dataclasses import replace
 
-from uav_leo_experiment.run_multi_uav import build_config
-from uav_leo_experiment.run_experiment import run_policy, write_csv
-from uav_leo_experiment.multi_uav import multi_uav_policies
+from docs.GDRL.uav_leo_experiment.run_multi_uav import build_config
+from docs.GDRL.uav_leo_experiment.run_experiment import run_policy, write_csv
+from docs.GDRL.uav_leo_experiment.multi_uav import multi_uav_policies
 
 SEEDS = [1, 7, 42, 73, 314, 555, 888, 999, 12345, 2024]
 PRESET = "k3"

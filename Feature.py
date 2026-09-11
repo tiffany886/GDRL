@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from Feature import ...`
 # 新代码请改用 from gdrl.models.feature import ...
-from gdrl.models.feature import *
+from docs.GDRL.gdrl.models.feature import *

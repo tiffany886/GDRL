@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from UpdateVariable import ...`
 # 新代码请改用 from gdrl.core.update import ...
-from gdrl.core.update import *
+from docs.GDRL.gdrl.core.update import *

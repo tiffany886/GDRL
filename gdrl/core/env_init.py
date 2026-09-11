@@ -7,8 +7,8 @@ ResetFunction 在每个 episode 开始时调用，生成所有节点的初始状
 import numpy as np
 import torch
 
-from gdrl.core.nodes import all_HAPS_status, all_LEO_status
-from gdrl.core.user import all_user_status
+from docs.GDRL.gdrl.core.nodes import all_HAPS_status, all_LEO_status
+from docs.GDRL.gdrl.core.user import all_user_status
 
 
 def ResetFunction(N, L, T, U):

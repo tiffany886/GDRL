@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace
 
 
 from .scenario_spec import scenario_overrides
@@ -62,6 +62,7 @@ class UavLeoConfig:
     hotspot_motion: bool = False
     hotspots: int = 1
     hotspot_speed: float = 18.0
+    hotspot_vel_noise: float = 0.0
     hotspot_radius: float = 220.0
     hotspot_arrival_prob: float = 0.95
     base_arrival_prob: float = 0.3
@@ -72,6 +73,13 @@ class UavLeoConfig:
     fixed_uav: bool = False
     no_flight_energy: bool = False
     full_offload_only: bool = False
+    # --- bursty traffic: task arrivals concentrated in periodic burst windows ---
+    burst_cycle: int = 0          # 0 = off; else cycle length in slots
+    burst_on: int = 3             # burst slots per cycle
+    burst_offset: int = 4         # first burst slot inside each cycle
+    burst_arrival_mult: float = 4.0
+    burst_size_mult: float = 2.0
+    burst_random: bool = False    # random burst offset per cycle (twin does not know it)
     output_root: str = "experiments/uav_leo"
 
 
@@ -320,4 +328,3 @@ def make_config(difficulty="easy", ablation="none", **overrides):
 
 def small_config():
     return make_config("easy")
-

@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from amp import ...`
 # 新代码请改用 from gdrl.models.amn import ...
-from gdrl.models.amn import *
+from docs.GDRL.gdrl.models.amn import *

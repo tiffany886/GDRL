@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 from dataclasses import asdict
 from .config import UavLeoConfig
 from .physics import flight_energy, nearest_leo_index, rate_uav_leo_vec, rate_user_uav_vec
@@ -31,11 +31,13 @@ class UavLeoEnv:
         self.hotspot_vel = None
         self.hotspot_road = None
         self.hotspot_along = None
+        self.hotspot_speed_signed = None
     def reset(self, seed=None):
         if seed is not None:
             self.rng = np.random.default_rng(seed)
         c = self.config
         self.t = 0
+        self._init_burst_offsets()
         self.leo_backlog = 0.0
         K = int(getattr(c, 'uavs', 1))
         M = int(getattr(c, 'hotspots', 1))
@@ -77,27 +79,57 @@ class UavLeoEnv:
             self.hotspot_road = np.zeros(M, dtype=int) if M == 1 else self.rng.integers(0, c.n_roads, size=M)
             self.hotspot_along = self.rng.uniform(-0.5 * c.road_half_len, 0.5 * c.road_half_len, size=M)
             directions = np.where(self.rng.uniform(size=M) < 0.5, c.hotspot_speed, -c.hotspot_speed)
-            self.hotspot_vel = self.road_dirs[self.hotspot_road] * directions[:, None]
+            self.hotspot_speed_signed = directions.astype(float)
+            self.hotspot_vel = self.road_dirs[self.hotspot_road] * self.hotspot_speed_signed[:, None]
             self.hotspot_pos = center + self.hotspot_along[:, None] * self.road_dirs[self.hotspot_road]
         else:
             self.hotspot_pos = None
             self.hotspot_vel = None
         self._sample_tasks()
         return self.observation()
+    def _in_burst(self):
+        c = self.config
+        cycle = int(getattr(c, "burst_cycle", 0))
+        if cycle <= 0:
+            return False
+        phase = self.t % cycle
+        if getattr(c, "burst_random", False):
+            offsets = getattr(self, "_burst_offsets", None)
+            if offsets is None:
+                return False
+            off = int(offsets[self.t // cycle])
+            return off <= phase < off + int(c.burst_on)
+        return int(c.burst_offset) <= phase < int(c.burst_offset) + int(c.burst_on)
+
+    def _init_burst_offsets(self):
+        c = self.config
+        if getattr(c, "burst_cycle", 0) > 0 and getattr(c, "burst_random", False):
+            n = c.horizon // int(c.burst_cycle) + 1
+            self._burst_offsets = self.rng.integers(
+                0, int(c.burst_cycle) - int(c.burst_on) + 1, size=n)
+        else:
+            self._burst_offsets = None
+
     def _sample_tasks(self):
         c = self.config
+        burst = self._in_burst()
         self.task_bits = self.rng.uniform(c.task_bits_min, c.task_bits_max, size=c.users)
         self.cycles_per_bit = self.rng.uniform(c.cycles_per_bit_min, c.cycles_per_bit_max, size=c.users)
         if c.hotspot_motion and self.hotspot_pos is not None:
             d2 = np.sum((self.user_pos[:, None, :] - self.hotspot_pos[None, :, :]) ** 2, axis=-1)
             proximity = np.max(np.exp(-d2 / (2.0 * c.hotspot_radius ** 2)), axis=1)
             p_arr = c.base_arrival_prob + (c.hotspot_arrival_prob - c.base_arrival_prob) * proximity
+            if burst:
+                p_arr = np.minimum(p_arr * c.burst_arrival_mult, 1.0)
             arrival = self.rng.uniform(size=c.users) < p_arr
             size_boost = 1.0 + c.hotspot_size_boost * proximity
+            if burst:
+                size_boost = size_boost * c.burst_size_mult
             self.task_bits = self.task_bits * size_boost
             self.cycles_per_bit = self.cycles_per_bit * size_boost
         elif c.task_arrival_prob < 1.0:
-            arrival = self.rng.uniform(size=c.users) < c.task_arrival_prob
+            p = c.task_arrival_prob * (c.burst_arrival_mult if burst else 1.0)
+            arrival = self.rng.uniform(size=c.users) < min(p, 1.0)
         else:
             arrival = np.ones(c.users, dtype=bool)
         self.task_bits = self.task_bits * arrival
@@ -131,15 +163,23 @@ class UavLeoEnv:
         c = self.config
         if not c.hotspot_motion or self.hotspot_pos is None:
             return
-        self.hotspot_along = self.hotspot_along + c.hotspot_speed * c.slot_seconds
+        noise = float(getattr(c, 'hotspot_vel_noise', 0.0))
+        if noise > 0.0:
+            eps = self.rng.uniform(-noise, noise, size=self.hotspot_along.shape)
+            speed = self.hotspot_speed_signed * (1.0 + eps)
+        else:
+            speed = self.hotspot_speed_signed.copy()
+        self.hotspot_along = self.hotspot_along + speed * c.slot_seconds
         high = self.hotspot_along > c.road_half_len
         low = self.hotspot_along < -c.road_half_len
         self.hotspot_along = np.where(high, 2.0 * c.road_half_len - self.hotspot_along, self.hotspot_along)
         self.hotspot_along = np.where(low, 2.0 * (-c.road_half_len) - self.hotspot_along, self.hotspot_along)
         flip = high | low
-        self.hotspot_vel[flip] = -self.hotspot_vel[flip]
+        speed[flip] = -speed[flip]
+        self.hotspot_speed_signed = speed
         center = np.array([0.5 * c.area_size, 0.5 * c.area_size])
         self.hotspot_pos = center + self.hotspot_along[:, None] * self.road_dirs[self.hotspot_road]
+        self.hotspot_vel = self.road_dirs[self.hotspot_road] * speed[:, None]
 
     def observation(self):
         c = self.config
@@ -169,8 +209,8 @@ class UavLeoEnv:
             'uav_backlog_norm': uav_backlog_norm,
             'leo_backlog_norm': leo_backlog_norm,
             'uav_battery_norm': uav_battery_norm,
-            'hotspot_pos': None if self.hotspot_pos is None else (self.hotspot_pos[0] if M == 1 else self.hotspot_pos.copy()),
-            'hotspot_vel': None if self.hotspot_vel is None else (self.hotspot_vel[0] if M == 1 else self.hotspot_vel.copy()),
+            'hotspot_pos': None if self.hotspot_pos is None else (self.hotspot_pos[0].copy() if M == 1 else self.hotspot_pos.copy()),
+            'hotspot_vel': None if self.hotspot_vel is None else (self.hotspot_vel[0].copy() if M == 1 else self.hotspot_vel.copy()),
         }
     def step(self, action):
         c = self.config

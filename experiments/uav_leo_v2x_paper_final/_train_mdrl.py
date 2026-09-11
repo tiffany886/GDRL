@@ -3,9 +3,9 @@
 import argparse, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from pathlib import Path
-from uav_leo_experiment.run_multi_uav import build_config
-from uav_leo_experiment.env import UavLeoEnv
-from uav_leo_experiment.multi_uav_drl import (train_multi_uav_drl, evaluate_multi_uav,
+from docs.GDRL.uav_leo_experiment.run_multi_uav import build_config
+from docs.GDRL.uav_leo_experiment.env import UavLeoEnv
+from docs.GDRL.uav_leo_experiment.multi_uav_drl import (train_multi_uav_drl, evaluate_multi_uav,
                                               make_trainer)
 import torch
 

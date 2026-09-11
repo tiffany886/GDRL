@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from CallBack import ...`
 # 新代码请改用 from gdrl.core.callback import ...
-from gdrl.core.callback import *
+from docs.GDRL.gdrl.core.callback import *

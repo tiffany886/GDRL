@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from Environment_baseline import ...`
 # 新代码请改用 from gdrl.envs.environment import ...
-from gdrl.envs.environment import *
+from docs.GDRL.gdrl.envs.environment import *

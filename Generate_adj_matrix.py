@@ -1,3 +1,3 @@
 # 兼容性存根 — 旧代码可继续使用 `from Generate_adj_matrix import ...`
 # 新代码请改用 from gdrl.core.graph import ...
-from gdrl.core.graph import *
+from docs.GDRL.gdrl.core.graph import *

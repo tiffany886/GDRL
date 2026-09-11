@@ -77,8 +77,8 @@ def build_env(scenario, exp_dir, seed, allow_retrain_amn=False):
     _saved_argv = sys.argv[:]
     sys.argv = sys.argv[:1]
     try:
-        from compare_baselines import build_components, train_or_load_amn, make_raw_env
-        from experiment_config import apply_scenario, validate_scenario
+        from docs.GDRL.compare_baselines import build_components, train_or_load_amn, make_raw_env
+        from docs.GDRL.experiment_config import apply_scenario, validate_scenario
     finally:
         sys.argv = _saved_argv
 
@@ -342,7 +342,7 @@ def main():
     # exp_dir (saved at training time) back to the shared cache so that
     # CustomFeaturesExtractor.load() reconstructs the exact same graph topology.
     import shutil as _shutil
-    from experiment_config import scenario_tag as _stag
+    from docs.GDRL.experiment_config import scenario_tag as _stag
     import types as _types, json as _jj
     _cfg2 = _jj.loads((exp_dir / "run_config.json").read_text())
     _fake = _types.SimpleNamespace(**{k: _cfg2.get(k, 0) for k in ("U","G","V","L","M","T","N")},
